@@ -50,6 +50,33 @@ NotificationService: listens to expenses, reminders and the sync state of
 own writes and shows local notifications.
 ```
 
+## ViewModel layer
+
+ViewModels sit between the views (Compose screens) and the backend
+(repositories and Firebase). Neither side knows the other.
+
+- **Views** only render a `UiState` and send user events to their ViewModel.
+  They never call a repository or Firebase directly.
+- **ViewModels** hold the screen's `UiState` as a `StateFlow`, call the
+  repository interfaces, use the domain calculators (e.g. balances), and turn
+  named errors and sync status into what the screen shows (loading, pending,
+  synced, failed, "No account with this email").
+- **Repositories** know nothing about screens or Android UI classes.
+
+| ViewModel | Screens | Main work |
+| --- | --- | --- |
+| `AuthViewModel` | S1, S2 | sign in, register, form validation |
+| `HomeViewModel` | S3 | current group, own balance, balances per member, remind |
+| `GroupsViewModel` | S4, S9 | my groups, selected group overview, create group |
+| `GroupDetailsViewModel` | S7, S8, S10 | edit details, members, add by email, remove (balance 0) |
+| `AddExpenseViewModel` | S11 | group, amount, payer, split selection, save |
+| `ActivityViewModel` | S5 | total spent, balance, transaction list with sync status, delete, settle up |
+| `ProfileViewModel` | S6 | profile, push setting |
+
+ViewModels get their repositories through constructor injection, so the same
+ViewModel runs against the `Fake…` or the `Firestore…` implementation. That
+makes them unit-testable without any UI and without Firebase.
+
 ## Data model
 
 Balances are never stored; they are calculated from the expenses. Amounts are
@@ -147,6 +174,7 @@ The rules cannot calculate balances, so "remove only with balance 0" and
 | Level | What | Where |
 | --- | --- | --- |
 | Unit | `SplitCalculator`, `BalanceCalculator`, validation | JVM |
+| ViewModel | Each ViewModel against `Fake…` repositories: UiState for loading, success, pending and error (Turbine) | JVM |
 | Integration | Firestore repositories and Security Rules, seeded with a fixed scenario | Instrumented tests on the Android emulator against the Firebase Emulator Suite (`10.0.2.2`) |
 | Contract | The same test cases against `Fake…` and `Firestore…` | Both of the above |
 | Manual / demo | Airplane mode on, add an expense, see pending, reconnect, see synced and the notification; second emulator receives the FR7 notification | Two Android emulators against the real Spark project; recorded for the demo video |

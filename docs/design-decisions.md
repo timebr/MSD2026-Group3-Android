@@ -15,23 +15,26 @@ plan is in the backend plan document; the resulting structure is in
    the demo runs on two emulators.
 4. **Repository interfaces with fake and Firestore implementations.** Frontend
    and backend can be built in parallel.
+5. **MVVM: a ViewModel layer between views and backend.** Screens only render
+   state, ViewModels talk to the repositories, so UI and data layer stay
+   independent and ViewModels can be unit-tested against fakes.
 
 ## Data model
 
-5. **Balances are calculated from expenses, never stored.** There is one
+6. **Balances are calculated from expenses, never stored.** There is one
    source of truth, so there is nothing to keep in sync.
-6. **Amounts are DKK only, stored as whole øre (`Long`).** This avoids
+7. **Amounts are DKK only, stored as whole øre (`Long`).** This avoids
    floating-point rounding errors.
-7. **Expenses split equally only, with the remainder assigned by sorted UID.**
+8. **Expenses split equally only, with the remainder assigned by sorted UID.**
    Shares always add up exactly, and all devices agree.
-8. **Members must already have an account and are found by email.** A member
+9. **Members must already have an account and are found by email.** A member
    is always a UID, with no placeholder users.
-9. **Settling up is a special expense (`SETTLEMENT`), marked by the debtor,
+10. **Settling up is a special expense (`SETTLEMENT`), marked by the debtor,
    with no verification.** No extra logic is needed in the balance
    calculation.
-10. **Expenses can be deleted by their creator but never edited.** This avoids
+11. **Expenses can be deleted by their creator but never edited.** This avoids
     offline edit conflicts.
-11. **A member can only be removed when their balance is 0.** This avoids
+12. **A member can only be removed when their balance is 0.** This avoids
     orphaned debts.
 
 ## Known limitations
