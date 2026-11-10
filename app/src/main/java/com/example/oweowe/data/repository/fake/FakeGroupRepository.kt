@@ -5,6 +5,7 @@ import com.example.oweowe.data.model.User
 import com.example.oweowe.data.repository.AppResult
 import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.data.repository.GroupRepository
+import com.example.oweowe.domain.BalanceCalculator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -51,7 +52,8 @@ class FakeGroupRepository(private val db: FakeBackend) : GroupRepository {
     override suspend fun removeMember(groupId: String, userId: String): AppResult<Unit> {
         db.simulateCall()?.let { return AppResult.Error(it) }
         if (!db.isMember(groupId, db.currentUserId.value)) return AppResult.Error(ErrorReason.NOT_ALLOWED)
-        // TODO(stage 3): return BALANCE_NOT_ZERO if BalanceCalculator says userId still owes or is owed money.
+        val groupExpenses = db.expenses.value.filter { it.groupId == groupId }
+        if (!BalanceCalculator.isSettled(groupExpenses, userId)) return AppResult.Error(ErrorReason.BALANCE_NOT_ZERO)
         changeGroup(groupId) { it.copy(memberIds = it.memberIds - userId) }
         return AppResult.Success(Unit)
     }

@@ -6,6 +6,7 @@ import com.example.oweowe.data.model.SyncStatus
 import com.example.oweowe.data.repository.AppResult
 import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.data.repository.ExpenseRepository
+import com.example.oweowe.domain.BalanceCalculator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -57,8 +58,8 @@ class FakeExpenseRepository(private val db: FakeBackend) : ExpenseRepository {
         if (!db.isMember(groupId, me) || !db.isMember(groupId, withUserId)) {
             return AppResult.Error(ErrorReason.NOT_ALLOWED)
         }
-        // TODO(stage 3): amount = what `me` owes `withUserId` according to BalanceCalculator.
-        val amountOre: Long = 0
+        val groupExpenses = db.expenses.value.filter { it.groupId == groupId }
+        val amountOre = BalanceCalculator.amountOwed(groupExpenses, from = me, to = withUserId)
         if (amountOre <= 0) return AppResult.Error(ErrorReason.NOTHING_TO_SETTLE)
 
         val settlement = Expense(
