@@ -1,3 +1,171 @@
 <resources>
     <string name="app_name">OweOwe</string>
+
+    <!-- Common -->
+    <string name="action_retry">Retry</string>
+    <string name="action_save">Save</string>
+    <string name="action_ok">OK</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_back">Back</string>
+    <string name="common_loading">Loading…</string>
+    <string name="common_offline_banner">You\'re offline. Showing saved data; changes will sync later.</string>
+    <string name="common_error_generic">Something went wrong. Try again.</string>
+    <string name="common_you_label">you</string>
+    <string name="common_member_count">%1$d members</string>
+
+    <!-- Sync status (NFR4) -->
+    <string name="sync_pending">Pending</string>
+    <string name="sync_synced">Synced</string>
+    <string name="sync_failed">Failed</string>
+    <string name="cd_sync_status">Sync status: %1$s</string>
+
+    <!-- Error reasons mapped from ErrorReason -->
+    <string name="error_network">You\'re offline. This will be retried when you\'re back online.</string>
+    <string name="error_invalid_email">That doesn\'t look like an email address.</string>
+    <string name="error_email_in_use">An account with this email already exists.</string>
+    <string name="error_weak_password">The password must be at least 6 characters.</string>
+    <string name="error_wrong_credentials">Wrong email or password.</string>
+    <string name="error_no_account_with_email">No account with this email.</string>
+    <string name="error_already_member">That person is already in the group.</string>
+    <string name="error_balance_not_zero">That member still owes or is owed money.</string>
+    <string name="error_invalid_amount">Enter an amount greater than 0.</string>
+    <string name="error_nothing_to_settle">Nothing to settle — you are even.</string>
+    <string name="error_not_allowed">You\'re not allowed to do that.</string>
+    <string name="error_unknown">Something went wrong. Try again.</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_groups">Groups</string>
+    <string name="nav_add_expense">Add expense</string>
+    <string name="nav_activity">Activity</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Sign in (S1) -->
+    <string name="sign_in_title">Sign in</string>
+    <string name="sign_in_email_label">Email</string>
+    <string name="sign_in_password_label">Password</string>
+    <string name="sign_in_button">Sign in</string>
+    <string name="sign_in_switch_to_register">New here? Create an account</string>
+    <string name="sign_in_demo_hint">Demo: tim@test.dk / password</string>
+
+    <!-- Register (S2) -->
+    <string name="register_title">New user</string>
+    <string name="register_full_name_label">Full name</string>
+    <string name="register_email_label">Email</string>
+    <string name="register_password_label">Password</string>
+    <string name="register_phone_label">Phone</string>
+    <string name="register_button">Create user</string>
+    <string name="register_switch_to_sign_in">Already have an account? Sign in</string>
+
+    <!-- Home (S3) -->
+    <string name="home_greeting">Hi, %1$s</string>
+    <string name="balance_you_get">You get %1$s back</string>
+    <string name="balance_you_owe">You owe %1$s</string>
+    <string name="balance_even">You\'re even</string>
+    <string name="home_member_owes_you">Owes you %1$s</string>
+    <string name="home_balances_title">Balances</string>
+    <string name="home_add_expense">Add expense</string>
+    <string name="home_remind">Remind</string>
+    <string name="home_reminder_sent">Reminder sent to %1$s</string>
+    <string name="home_reminder_failed">The reminder could not be sent.</string>
+    <string name="home_no_groups_title">No groups yet</string>
+    <string name="home_no_groups_message">Create a group to start sharing expenses.</string>
+    <string name="home_go_to_groups">Go to groups</string>
+    <string name="home_synced_in_background">\"%1$s\" was synced in the background.</string>
+    <string name="cd_remind_member">Remind %1$s to pay</string>
+    <string name="home_group_section">Current group</string>
+
+    <!-- Groups (S4) -->
+    <string name="groups_title">Your groups</string>
+    <string name="groups_empty_title">No groups</string>
+    <string name="groups_empty_message">Create your first group to start sharing expenses.</string>
+    <string name="groups_create">Create group</string>
+    <string name="groups_open_group">Open group %1$s</string>
+    <string name="groups_created">Group created</string>
+
+    <!-- Create group (S9) -->
+    <string name="create_group_title">New group</string>
+    <string name="create_group_name_label">Group name</string>
+    <string name="create_group_description_label">Description (optional)</string>
+    <string name="create_group_button">Create group</string>
+
+    <!-- Group overview (S4 detail) -->
+    <string name="group_overview_total_spent">Total spent</string>
+    <string name="group_overview_members">Members</string>
+    <string name="group_overview_edit_details">Edit details</string>
+    <string name="group_overview_manage_members">Members</string>
+    <string name="group_overview_not_found">This group no longer exists.</string>
+    <string name="group_overview_reminder_sent">Reminder sent to %1$s</string>
+
+    <!-- Edit group (S7) -->
+    <string name="edit_group_title">Edit group</string>
+    <string name="edit_group_name_label">Group name</string>
+    <string name="edit_group_description_label">Description (optional)</string>
+    <string name="edit_group_saved">Saved</string>
+
+    <!-- Manage members (S8 + S10) -->
+    <string name="manage_members_title">Group members</string>
+    <string name="manage_members_remove">Remove</string>
+    <string name="manage_members_add_title">Add member</string>
+    <string name="manage_members_email_label">Email</string>
+    <string name="manage_members_add_button">Add to group</string>
+    <string name="manage_members_added">%1$s was added to the group.</string>
+    <string name="manage_members_removed">%1$s was removed from the group.</string>
+    <string name="cd_remove_member">Remove %1$s from the group</string>
+
+    <!-- Add expense (S11) -->
+    <string name="add_expense_title">Add expense</string>
+    <string name="add_expense_group_label">Group</string>
+    <string name="add_expense_description_label">Purpose</string>
+    <string name="add_expense_category_label">Category</string>
+    <string name="add_expense_amount_label">Amount (kr)</string>
+    <string name="add_expense_amount_invalid">Enter a valid amount, e.g. 123,45</string>
+    <string name="add_expense_paid_by_label">Paid by</string>
+    <string name="add_expense_split_with_label">Split with</string>
+    <string name="add_expense_split_everyone">Everyone</string>
+    <string name="add_expense_receipt_label">Add receipt</string>
+    <string name="add_expense_receipt_placeholder">Receipts arrive in a later version.</string>
+    <string name="add_expense_submit">Split expense</string>
+    <string name="add_expense_added">Expense added</string>
+    <string name="add_expense_no_group_title">No group</string>
+    <string name="add_expense_no_group_message">Create a group before adding expenses.</string>
+    <string name="add_expense_pick_group">Pick a group</string>
+    <string name="add_expense_select_all">All</string>
+
+    <!-- Activity (S5) -->
+    <string name="activity_title">Activity</string>
+    <string name="activity_total_spent">Total spent</string>
+    <string name="activity_my_balance">Your balance</string>
+    <string name="activity_transactions_title">Transactions</string>
+    <string name="activity_empty_title">Nothing here yet</string>
+    <string name="activity_empty_message">Expenses you add will show up here.</string>
+    <string name="activity_settlement">Settlement</string>
+    <string name="activity_expense_fallback">Expense</string>
+    <string name="activity_transaction_subtitle">%1$s · %2$s</string>
+    <string name="activity_reminders_title">Reminders for you</string>
+    <string name="activity_reminder_received">%1$s reminded you about %2$s</string>
+
+    <!-- Profile (S6) -->
+    <string name="profile_title">Profile</string>
+    <string name="profile_edit">Edit profile</string>
+    <string name="profile_notification_settings">Notification settings</string>
+    <string name="profile_sign_out">Sign out</string>
+    <string name="profile_email_label">Email</string>
+    <string name="profile_phone_label">Phone</string>
+    <string name="profile_name_label">Full name</string>
+    <string name="profile_not_signed_in">Not signed in</string>
+
+    <!-- Edit profile -->
+    <string name="edit_profile_title">Edit profile</string>
+    <string name="edit_profile_saved">Profile saved</string>
+
+    <!-- Notification settings -->
+    <string name="notification_settings_title">Notification settings</string>
+    <string name="notification_settings_push">Push notifications</string>
+    <string name="notification_settings_push_hint">New expenses and reminders from your groups.</string>
+
+    <!-- Developer options (debug knobs for the fake backend, not a product feature) -->
+    <string name="dev_options_title">Developer options</string>
+    <string name="dev_fail_next_write">Fail the next write (simulate offline)</string>
+    <string name="dev_slow_network">Slow network (3 second delay)</string>
 </resources>

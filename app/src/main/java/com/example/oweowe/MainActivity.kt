@@ -6,86 +6,128 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewScreenSizes
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.example.oweowe.ui.navigation.NavRoutes
+import com.example.oweowe.ui.navigation.OweOweNavHost
 import com.example.oweowe.ui.theme.OweOweTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val container = (application as OweOweApplication).container
         setContent {
             OweOweTheme {
-                OweOweApp()
+                OweOweApp(container = container)
             }
         }
     }
 }
 
-@PreviewScreenSizes
-@Composable
-fun OweOweApp() {
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+/** One tab of the primary (bottom bar) navigation. */
+private data class BottomBarTab(
+    val route: String,
+    val labelRes: Int,
+    val icon: ImageVector,
+)
 
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            AppDestinations.entries.forEach {
-                item(
-                    icon = {
-                        Icon(
-                            painterResource(it.icon),
-                            contentDescription = it.label
+private val bottomBarTabs = listOf(
+    BottomBarTab(NavRoutes.Home.ROUTE, R.string.nav_home, Icons.Filled.Home),
+    BottomBarTab(NavRoutes.Groups.ROUTE, R.string.nav_groups, Icons.AutoMirrored.Filled.List),
+    BottomBarTab(NavRoutes.AddExpense.ROUTE, R.string.nav_add_expense, Icons.Filled.Add),
+    BottomBarTab(NavRoutes.Activity.ROUTE, R.string.nav_activity, Icons.Filled.Notifications),
+    BottomBarTab(NavRoutes.Profile.ROUTE, R.string.nav_profile, Icons.Filled.Person),
+)
+
+/** The bar is only shown on the primary destinations, never on auth or detail screens. */
+private fun tabFor(route: String?): BottomBarTab? =
+    bottomBarTabs.firstOrNull { tab -> route == tab.route || route?.startsWith("${tab.route}?") == true }
+
+/**
+ * App root: the auth gate and the primary navigation. Sign in / out is not
+ * navigated from any screen — the repository's `currentUserId` flips and this
+ * composable switches between the auth stack and Home, so it works the same
+ * once Firebase is wired in.
+ */
+@Composable
+fun OweOweApp(container: AppContainer) {
+    val navController = rememberNavController()
+
+    val signedInUserId by container.authRepository.currentUserId
+        .collectAsStateWithLifecycle(initialValue = container.initialUserId)
+    LaunchedEffect(signedInUserId) {
+        val route = navController.currentDestination?.route ?: return@LaunchedEffect
+        val onAuthScreen =
+            route == NavRoutes.SignIn.ROUTE || route == NavRoutes.Register.ROUTE
+        when {
+            signedInUserId == null && !onAuthScreen ->
+                navController.navigate(NavRoutes.SignIn.ROUTE) {
+                    popUpTo(0) { inclusive = true }   // leave no signed-out state behind
+                }
+            signedInUserId != null && onAuthScreen ->
+                navController.navigate(NavRoutes.Home.ROUTE) {
+                    popUpTo(0) { inclusive = true }
+                }
+        }
+    }
+
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentTab = tabFor(backStackEntry?.destination?.route)
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            if (currentTab != null) {
+                NavigationBar {
+                    bottomBarTabs.forEach { tab ->
+                        NavigationBarItem(
+                            selected = tab == currentTab,
+                            onClick = {
+                                if (tab != currentTab) {
+                                    navController.navigate(tab.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            },
+                            icon = {
+                                Icon(tab.icon, contentDescription = stringResource(tab.labelRes))
+                            },
+                            label = { Text(stringResource(tab.labelRes)) },
                         )
-                    },
-                    label = { Text(it.label) },
-                    selected = it == currentDestination,
-                    onClick = { currentDestination = it }
-                )
+                    }
+                }
             }
-        }
-    ) {
-        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-            Greeting(
-                name = "Android",
-                modifier = Modifier.padding(innerPadding)
-            )
-        }
-    }
-}
-
-enum class AppDestinations(
-    val label: String,
-    val icon: Int,
-) {
-    HOME("Home", R.drawable.ic_home),
-    FAVORITES("Favorites", R.drawable.ic_favorite),
-    PROFILE("Profile", R.drawable.ic_account_box),
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    OweOweTheme {
-        Greeting("Android")
+        },
+    ) { padding ->
+        OweOweNavHost(
+            navController = navController,
+            container = container,
+            // Only the bar's height; each screen's own Scaffold insets its top bar.
+            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
+        )
     }
 }

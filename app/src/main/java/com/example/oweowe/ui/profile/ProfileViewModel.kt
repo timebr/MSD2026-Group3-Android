@@ -1,0 +1,148 @@
+package com.example.oweowe.ui.profile
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import com.example.oweowe.AppContainer
+import com.example.oweowe.R
+import com.example.oweowe.data.connectivity.ConnectivityObserver
+import com.example.oweowe.data.model.User
+import com.example.oweowe.data.repository.AppResult
+import com.example.oweowe.data.repository.AuthRepository
+import com.example.oweowe.data.repository.UserRepository
+import com.example.oweowe.ui.components.UiMessage
+import com.example.oweowe.ui.components.WriteState
+import com.example.oweowe.ui.components.errorReasonRes
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+/** S6 Profile. */
+data class ProfileUiState(
+    val loading: Boolean = true,
+    val offline: Boolean = false,
+    val me: User? = null,
+    val pushBusy: Boolean = false,
+)
+
+/** Edit-profile form (S6 / Edit profile screen). */
+data class EditProfileUiState(
+    val fullName: String = "",
+    val phone: String = "",
+    val nameInvalid: Boolean = false,
+    val writeState: WriteState = WriteState.Idle,
+    val loadedFromMe: Boolean = false,
+)
+
+/**
+ * S6 Profile (FR2): own profile, push notification preference and sign out.
+ * Sign out flips the auth repository's `currentUserId` and OweOweApp switches
+ * back to the Sign in screen — no direct navigation from here.
+ */
+class ProfileViewModel(
+    private val authRepository: AuthRepository,
+    private val userRepository: UserRepository,
+    connectivity: ConnectivityObserver,
+) : ViewModel() {
+
+    private val pushBusy = MutableStateFlow(false)
+
+    private val _messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 8)
+    val messages: SharedFlow<UiMessage> = _messages.asSharedFlow()
+
+    val uiState: StateFlow<ProfileUiState> = combine(
+        userRepository.observeMe(),
+        connectivity.isOnline,
+        pushBusy,
+    ) { me, online, busy ->
+        ProfileUiState(loading = false, offline = !online, me = me, pushBusy = busy)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProfileUiState())
+
+    private val _editState = MutableStateFlow(EditProfileUiState())
+    val editState: StateFlow<EditProfileUiState> = _editState.asStateFlow()
+
+    init {
+        // Pre-fill the edit form from the profile once it arrives.
+        viewModelScope.launch {
+            val me = userRepository.observeMe().filterNotNull().first()
+            _editState.update {
+                if (it.loadedFromMe) it else it.copy(fullName = me.fullName, phone = me.phone, loadedFromMe = true)
+            }
+        }
+    }
+
+    // ---- Edit profile ----
+
+    fun updateFullName(name: String) =
+        _editState.update { it.copy(fullName = name, nameInvalid = false, writeState = WriteState.Idle) }
+
+    fun updatePhone(phone: String) =
+        _editState.update { it.copy(phone = phone, writeState = WriteState.Idle) }
+
+    fun saveProfile() {
+        val state = _editState.value
+        if (state.writeState == WriteState.Busy) return
+        if (state.fullName.isBlank()) {
+            _editState.update { it.copy(nameInvalid = true) }
+            return
+        }
+        _editState.update { it.copy(writeState = WriteState.Busy) }
+        viewModelScope.launch {
+            when (val result = userRepository.updateProfile(state.fullName.trim(), state.phone.trim())) {
+                is AppResult.Success -> {
+                    _editState.update { it.copy(writeState = WriteState.Done) }
+                    _messages.emit(UiMessage(R.string.edit_profile_saved))
+                }
+                is AppResult.Error ->
+                    _editState.update { it.copy(writeState = WriteState.Failed(result.reason)) }
+            }
+        }
+    }
+
+    fun resetWriteState() = _editState.update { it.copy(writeState = WriteState.Idle) }
+
+    // ---- Notification settings ----
+
+    fun setPushEnabled(enabled: Boolean) {
+        if (pushBusy.value) return
+        pushBusy.value = true
+        viewModelScope.launch {
+            when (val result = userRepository.setPushEnabled(enabled)) {
+                is AppResult.Success -> Unit                     // the profile flow shows the new value
+                is AppResult.Error -> {
+                    _messages.emit(UiMessage(errorReasonRes(result.reason)))
+                }
+            }
+            pushBusy.value = false
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch { authRepository.signOut() }
+    }
+
+    companion object {
+        fun factory(container: AppContainer): ViewModelProvider.Factory =
+            viewModelFactory {
+                initializer {
+                    ProfileViewModel(
+                        authRepository = container.authRepository,
+                        userRepository = container.userRepository,
+                        connectivity = container.connectivityObserver,
+                    )
+                }
+            }
+    }
+}
