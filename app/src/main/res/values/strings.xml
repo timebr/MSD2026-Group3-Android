@@ -160,7 +160,7 @@
     <!-- Profile (S6) -->
     <string name="profile_title">Profile</string>
     <string name="profile_edit">Edit profile</string>
-    <string name="profile_notification_settings">Notification settings</string>
+    <string name="profile_notification_settings">Settings</string>
     <string name="profile_sign_out">Sign out</string>
     <string name="profile_email_label">Email</string>
     <string name="profile_phone_label">Phone</string>
@@ -172,9 +172,16 @@
     <string name="edit_profile_saved">Profile saved</string>
 
     <!-- Notification settings -->
-    <string name="notification_settings_title">Notification settings</string>
+    <string name="notification_settings_title">Settings</string>
     <string name="notification_settings_push">Push notifications</string>
     <string name="notification_settings_push_hint">New expenses and reminders from your groups.</string>
+
+    <!-- Settings: contacts access (FR3) -->
+    <string name="settings_contacts_access">Contacts access</string>
+    <string name="settings_contacts_hint">Used to suggest people you can add to a group. Names and emails stay on this device.</string>
+    <string name="settings_contacts_off">Off. Turn on to suggest members from your contacts.</string>
+    <string name="settings_contacts_denied">Blocked in Android. Open the system settings to allow access.</string>
+    <string name="settings_open_system_settings">Open Android settings</string>
 
     <!-- Developer options (debug knobs for the fake backend, not a product feature) -->
     <string name="dev_options_title">Developer options</string>
