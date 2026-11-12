@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- S8 / S10: suggest group members from the device contacts. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
     <application
         android:name=".OweOweApplication"
         android:allowBackup="true"

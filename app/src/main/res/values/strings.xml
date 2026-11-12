@@ -114,6 +114,13 @@
     <string name="manage_members_phone_label">Phone number</string>
     <string name="manage_members_phone_hint">We look up the account registered with this number.</string>
     <string name="manage_members_add_button">Add to group</string>
+    <string name="manage_members_contacts_title">Suggestions from contacts</string>
+    <string name="manage_members_contacts_hint">Allow access to suggest people from your contacts. Names and email addresses stay on this device.</string>
+    <string name="manage_members_contacts_denied">Contacts access is off. You can turn it on later in Settings.</string>
+    <string name="manage_members_contacts_allow">Allow access</string>
+    <string name="manage_members_contacts_add">Add</string>
+    <string name="manage_members_contacts_show_all">Show all (%1$d)</string>
+    <string name="manage_members_contacts_show_less">Show less</string>
     <string name="manage_members_added">%1$s was added to the group.</string>
     <string name="manage_members_removed">%1$s was removed from the group.</string>
     <string name="cd_remove_member">Remove %1$s from the group</string>

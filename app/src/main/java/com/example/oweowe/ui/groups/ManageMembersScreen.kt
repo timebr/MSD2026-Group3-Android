@@ -1,5 +1,8 @@
 package com.example.oweowe.ui.groups
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -21,6 +25,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,6 +49,11 @@ import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.asString
+import com.example.oweowe.ui.groups.contacts.ContactSuggestion
+import com.example.oweowe.ui.groups.contacts.hasContactsPermission
+import com.example.oweowe.ui.groups.contacts.readContactsWithEmail
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /** S8 Group members with S10 Add member (FR3). */
 @Composable
@@ -66,6 +76,25 @@ fun ManageMembersScreen(
         }
     }
 
+    // Contacts are read on the device and only used to suggest members (FR3).
+    val appContext = context.applicationContext
+    var contactsAllowed by remember { mutableStateOf(hasContactsPermission(appContext)) }
+    var contacts by remember { mutableStateOf<List<ContactSuggestion>>(emptyList()) }
+    var contactsDenied by rememberSaveable { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        contactsAllowed = granted
+        contactsDenied = !granted
+    }
+    LaunchedEffect(contactsAllowed) {
+        contacts = if (contactsAllowed) {
+            withContext(Dispatchers.IO) { readContactsWithEmail(appContext.contentResolver) }
+        } else {
+            emptyList()
+        }
+    }
+
     Scaffold(
         topBar = {
             AppTopBar(
@@ -81,6 +110,10 @@ fun ManageMembersScreen(
             onAddMemberByEmail = viewModel::addMemberByEmail,
             onAddMemberByPhone = viewModel::addMemberByPhone,
             onRemoveMember = viewModel::removeMember,
+            suggestions = contacts,
+            contactsAllowed = contactsAllowed,
+            contactsDenied = contactsDenied,
+            onRequestContacts = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) },
             modifier = Modifier.padding(padding),
         )
     }
@@ -96,9 +129,24 @@ fun ManageMembersContent(
     onAddMemberByPhone: (String) -> Unit,
     onRemoveMember: (MemberRow) -> Unit,
     modifier: Modifier = Modifier,
+    suggestions: List<ContactSuggestion> = emptyList(),
+    contactsAllowed: Boolean = false,
+    contactsDenied: Boolean = false,
+    onRequestContacts: () -> Unit = {},
 ) {
     var mode by rememberSaveable { mutableStateOf(AddMemberMode.EMAIL) }
     var input by rememberSaveable { mutableStateOf("") }
+    var showAllSuggestions by rememberSaveable { mutableStateOf(false) }
+
+    val memberEmails = remember(state.members) {
+        state.members.map { it.user.email.lowercase() }.toSet()
+    }
+    // A contact that is already in the group (or has no email) is not suggested again.
+    val candidates = remember(suggestions, memberEmails) {
+        suggestions.filter { it.email.lowercase() !in memberEmails }
+    }
+    val visibleSuggestions =
+        if (showAllSuggestions) candidates else candidates.take(SUGGESTIONS_PREVIEW_COUNT)
 
     fun submit() {
         val value = input.trim()
@@ -131,6 +179,42 @@ fun ManageMembersContent(
                     onSubmit = { submit() },
                 )
             }
+            if (!contactsAllowed) {
+                item {
+                    ContactsAccessCard(denied = contactsDenied, onRequest = onRequestContacts)
+                }
+            } else if (candidates.isNotEmpty()) {
+                item { HorizontalDivider() }
+                item {
+                    Text(
+                        text = stringResource(R.string.manage_members_contacts_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                items(visibleSuggestions, key = { "contact-${it.email}" }) { contact ->
+                    ContactSuggestionRow(
+                        contact = contact,
+                        enabled = !state.busy,
+                        onAdd = { onAddMemberByEmail(contact.email) },
+                    )
+                }
+                if (candidates.size > SUGGESTIONS_PREVIEW_COUNT) {
+                    item {
+                        TextButton(onClick = { showAllSuggestions = !showAllSuggestions }) {
+                            Text(
+                                if (showAllSuggestions) {
+                                    stringResource(R.string.manage_members_contacts_show_less)
+                                } else {
+                                    stringResource(
+                                        R.string.manage_members_contacts_show_all,
+                                        candidates.size,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
             item { HorizontalDivider() }
             item {
                 Text(
@@ -141,6 +225,66 @@ fun ManageMembersContent(
             items(state.members, key = { it.user.uid }) { member ->
                 ManageMemberRow(member, enabled = !state.busy, onRemoveMember = onRemoveMember)
             }
+        }
+    }
+}
+
+/** How many contact suggestions are shown before "Show all". */
+private const val SUGGESTIONS_PREVIEW_COUNT = 5
+
+/** Explains why the app wants the contacts permission before the system prompt. */
+@Composable
+private fun ContactsAccessCard(denied: Boolean, onRequest: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.manage_members_contacts_title),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                text = stringResource(
+                    if (denied) {
+                        R.string.manage_members_contacts_denied
+                    } else {
+                        R.string.manage_members_contacts_hint
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            TextButton(onClick = onRequest, modifier = Modifier.padding(top = 4.dp)) {
+                Text(stringResource(R.string.manage_members_contacts_allow))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContactSuggestionRow(
+    contact: ContactSuggestion,
+    enabled: Boolean,
+    onAdd: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        InitialsAvatar(name = contact.name)
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 12.dp),
+        ) {
+            Text(contact.name, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = contact.email,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        OutlinedButton(onClick = onAdd, enabled = enabled) {
+            Text(stringResource(R.string.manage_members_contacts_add))
         }
     }
 }
@@ -325,6 +469,54 @@ private fun AddMemberByPhonePreview() {
             onModeChange = {},
             onInputChange = {},
             onSubmit = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Manage members contact suggestions")
+@Composable
+private fun ManageMembersContactsPreview() {
+    MaterialTheme {
+        ManageMembersContent(
+            state = GroupOverviewUiState(
+                loading = false,
+                me = User(uid = "u1", fullName = "Tim Test", email = "tim@test.dk"),
+                members = listOf(
+                    MemberRow(
+                        User(uid = "u1", fullName = "Tim Test", email = "tim@test.dk"),
+                        balanceOre = 0, isMe = true, canRemove = false, owesMeOre = 0,
+                    ),
+                ),
+            ),
+            onAddMemberByEmail = {},
+            onAddMemberByPhone = {},
+            onRemoveMember = {},
+            suggestions = listOf(
+                ContactSuggestion(name = "Maja Contact", email = "maja@test.dk"),
+                ContactSuggestion(name = "Niels Contact", email = "niels@test.dk"),
+            ),
+            contactsAllowed = true,
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Manage members contacts prompt")
+@Composable
+private fun ManageMembersContactsPromptPreview() {
+    MaterialTheme {
+        ManageMembersContent(
+            state = GroupOverviewUiState(
+                loading = false,
+                members = listOf(
+                    MemberRow(
+                        User(uid = "u2", fullName = "Anna Test", email = "anna@test.dk"),
+                        balanceOre = 0, isMe = false, canRemove = true, owesMeOre = 0,
+                    ),
+                ),
+            ),
+            onAddMemberByEmail = {},
+            onAddMemberByPhone = {},
+            onRemoveMember = {},
         )
     }
 }
