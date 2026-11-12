@@ -26,6 +26,7 @@
     <string name="error_weak_password">The password must be at least 6 characters.</string>
     <string name="error_wrong_credentials">Wrong email or password.</string>
     <string name="error_no_account_with_email">No account with this email.</string>
+    <string name="error_no_account_with_phone">No account with this phone number.</string>
     <string name="error_already_member">That person is already in the group.</string>
     <string name="error_balance_not_zero">That member still owes or is owed money.</string>
     <string name="error_invalid_amount">Enter an amount greater than 0.</string>
@@ -107,7 +108,11 @@
     <string name="manage_members_title">Group members</string>
     <string name="manage_members_remove">Remove</string>
     <string name="manage_members_add_title">Add member</string>
+    <string name="manage_members_email">Email</string>
+    <string name="manage_members_phone">Phone</string>
     <string name="manage_members_email_label">Email</string>
+    <string name="manage_members_phone_label">Phone number</string>
+    <string name="manage_members_phone_hint">We look up the account registered with this number.</string>
     <string name="manage_members_add_button">Add to group</string>
     <string name="manage_members_added">%1$s was added to the group.</string>
     <string name="manage_members_removed">%1$s was removed from the group.</string>

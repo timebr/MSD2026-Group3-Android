@@ -201,14 +201,25 @@ class GroupDetailsViewModel(
         if (busy.value) return
         busy.value = true
         viewModelScope.launch {
-            val result = groupRepository.addMemberByEmail(groupId, email)
-            busy.value = false
-            val message = when (result) {
-                is AppResult.Success -> UiMessage(R.string.manage_members_added, listOf(result.value.fullName))
-                is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
-            }
-            _messages.emit(message)
+            emitAddedMember(groupRepository.addMemberByEmail(groupId, email))
         }
+    }
+
+    fun addMemberByPhone(phone: String) {
+        if (busy.value) return
+        busy.value = true
+        viewModelScope.launch {
+            emitAddedMember(groupRepository.addMemberByPhone(groupId, phone))
+        }
+    }
+
+    private suspend fun emitAddedMember(result: AppResult<User>) {
+        busy.value = false
+        val message = when (result) {
+            is AppResult.Success -> UiMessage(R.string.manage_members_added, listOf(result.value.fullName))
+            is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
+        }
+        _messages.emit(message)
     }
 
     fun removeMember(member: MemberRow) {

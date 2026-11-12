@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -25,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,21 +78,36 @@ fun ManageMembersScreen(
     ) { padding ->
         ManageMembersContent(
             state = state,
-            onAddMember = viewModel::addMemberByEmail,
+            onAddMemberByEmail = viewModel::addMemberByEmail,
+            onAddMemberByPhone = viewModel::addMemberByPhone,
             onRemoveMember = viewModel::removeMember,
             modifier = Modifier.padding(padding),
         )
     }
 }
 
+/** How the user identifies the person to add (S10). */
+enum class AddMemberMode { EMAIL, PHONE }
+
 @Composable
 fun ManageMembersContent(
     state: GroupOverviewUiState,
-    onAddMember: (String) -> Unit,
+    onAddMemberByEmail: (String) -> Unit,
+    onAddMemberByPhone: (String) -> Unit,
     onRemoveMember: (MemberRow) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var email by remember { mutableStateOf("") }
+    var mode by rememberSaveable { mutableStateOf(AddMemberMode.EMAIL) }
+    var input by rememberSaveable { mutableStateOf("") }
+
+    fun submit() {
+        val value = input.trim()
+        when (mode) {
+            AddMemberMode.EMAIL -> onAddMemberByEmail(value)
+            AddMemberMode.PHONE -> onAddMemberByPhone(value)
+        }
+        input = ""
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
@@ -105,36 +122,14 @@ fun ManageMembersContent(
                 )
             }
             item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text(stringResource(R.string.manage_members_email_label)) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedButton(
-                        onClick = {
-                            onAddMember(email.trim())
-                            email = ""
-                        },
-                        enabled = !state.busy,
-                        modifier = Modifier.padding(start = 8.dp),
-                    ) {
-                        if (state.busy) {
-                            CircularProgressIndicator(
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        } else {
-                            Text(stringResource(R.string.manage_members_add_button))
-                        }
-                    }
-                }
+                AddMemberForm(
+                    mode = mode,
+                    input = input,
+                    busy = state.busy,
+                    onModeChange = { mode = it },
+                    onInputChange = { input = it },
+                    onSubmit = { submit() },
+                )
             }
             item { HorizontalDivider() }
             item {
@@ -145,6 +140,85 @@ fun ManageMembersContent(
             }
             items(state.members, key = { it.user.uid }) { member ->
                 ManageMemberRow(member, enabled = !state.busy, onRemoveMember = onRemoveMember)
+            }
+        }
+    }
+}
+
+/** S10 Add member form: the person is found by email or by phone number (FR3). */
+@Composable
+private fun AddMemberForm(
+    mode: AddMemberMode,
+    input: String,
+    busy: Boolean,
+    onModeChange: (AddMemberMode) -> Unit,
+    onInputChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+) {
+    Column {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = mode == AddMemberMode.EMAIL,
+                onClick = { onModeChange(AddMemberMode.EMAIL) },
+                label = { Text(stringResource(R.string.manage_members_email)) },
+                enabled = !busy,
+            )
+            FilterChip(
+                selected = mode == AddMemberMode.PHONE,
+                onClick = { onModeChange(AddMemberMode.PHONE) },
+                label = { Text(stringResource(R.string.manage_members_phone)) },
+                enabled = !busy,
+            )
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+        ) {
+            OutlinedTextField(
+                value = input,
+                onValueChange = onInputChange,
+                label = {
+                    Text(
+                        stringResource(
+                            if (mode == AddMemberMode.EMAIL) {
+                                R.string.manage_members_email_label
+                            } else {
+                                R.string.manage_members_phone_label
+                            },
+                        ),
+                    )
+                },
+                supportingText = if (mode == AddMemberMode.PHONE) {
+                    { Text(stringResource(R.string.manage_members_phone_hint)) }
+                } else {
+                    null
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (mode == AddMemberMode.EMAIL) {
+                        KeyboardType.Email
+                    } else {
+                        KeyboardType.Phone
+                    },
+                ),
+                singleLine = true,
+                enabled = !busy,
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedButton(
+                onClick = onSubmit,
+                enabled = !busy,
+                modifier = Modifier.padding(start = 8.dp),
+            ) {
+                if (busy) {
+                    CircularProgressIndicator(
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(16.dp),
+                    )
+                } else {
+                    Text(stringResource(R.string.manage_members_add_button))
+                }
             }
         }
     }
@@ -211,7 +285,8 @@ private fun ManageMembersPreview() {
                     ),
                 ),
             ),
-            onAddMember = {},
+            onAddMemberByEmail = {},
+            onAddMemberByPhone = {},
             onRemoveMember = {},
         )
     }
@@ -232,8 +307,24 @@ private fun ManageMembersBusyPreview() {
                     ),
                 ),
             ),
-            onAddMember = {},
+            onAddMemberByEmail = {},
+            onAddMemberByPhone = {},
             onRemoveMember = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Add member by phone")
+@Composable
+private fun AddMemberByPhonePreview() {
+    MaterialTheme {
+        AddMemberForm(
+            mode = AddMemberMode.PHONE,
+            input = "+45 22 22 22 22",
+            busy = false,
+            onModeChange = {},
+            onInputChange = {},
+            onSubmit = {},
         )
     }
 }
