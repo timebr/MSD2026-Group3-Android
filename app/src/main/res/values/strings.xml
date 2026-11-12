@@ -171,10 +171,10 @@
     <string name="edit_profile_title">Edit profile</string>
     <string name="edit_profile_saved">Profile saved</string>
 
-    <!-- Notification settings -->
+    <!-- Settings: activity notifications (FR2, FR7, FR8) -->
     <string name="notification_settings_title">Settings</string>
-    <string name="notification_settings_push">Push notifications</string>
-    <string name="notification_settings_push_hint">New expenses and reminders from your groups.</string>
+    <string name="notification_settings_push">Activity notifications</string>
+    <string name="notification_settings_push_hint">New expenses, new members and changes in your groups, plus reminders sent to you.</string>
 
     <!-- Settings: contacts access (FR3) -->
     <string name="settings_contacts_access">Contacts access</string>

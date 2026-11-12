@@ -47,6 +47,10 @@ import com.example.oweowe.ui.groups.contacts.hasContactsPermission
 /**
  * S6 Settings (FR2): the notification preference for FR7 / FR8 notifications and
  * the contacts permission used to suggest group members (FR3).
+ *
+ * The preference is stored on the user (`pushEnabled`). Delivering the actual
+ * notifications is the separate FR7 feature and is not implemented yet, so the
+ * switch only records what the user wants.
  */
 @Composable
 fun NotificationSettingsScreen(container: AppContainer, onBack: () -> Unit) {
