@@ -7,7 +7,7 @@ package com.example.oweowe.ui.navigation
  * SignIn <-> Register                     (before authentication)
  * Home  Groups  AddExpense  Activity  Profile   (primary / bottom bar)
  * Groups -> CreateGroup -> GroupOverview
- * Groups -> GroupOverview -> EditGroup | ManageMembers | AddExpense | Home
+ * Groups -> GroupOverview -> EditGroup | ManageMembers | AddExpense | Groups (back)
  * Profile -> EditProfile | NotificationSettings
  * ```
  */

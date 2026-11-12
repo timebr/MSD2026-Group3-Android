@@ -130,13 +130,14 @@ fun OweOweNavHost(
         ) { entry ->
             val groupId =
                 entry.arguments?.getString(NavRoutes.GroupOverview.GROUP_ID_ARG).orEmpty()
-            // The navigation model: leaving a group overview goes Home, so the
-            // system back gesture follows the top bar's back arrow.
-            BackHandler { navController.navigateToHome() }
+            // The navigation model: leaving a group overview goes back to the
+            // Groups tab (where the group was opened), so the system back gesture
+            // follows the top bar's back arrow.
+            BackHandler { navController.navigateToTab(NavRoutes.Groups.ROUTE) }
             GroupOverviewScreen(
                 container = container,
                 groupId = groupId,
-                onBack = { navController.navigateToHome() },
+                onBack = { navController.navigateToTab(NavRoutes.Groups.ROUTE) },
                 onEditGroup = { navController.navigate(NavRoutes.EditGroup.route(groupId)) },
                 onManageMembers = { navController.navigate(NavRoutes.ManageMembers.route(groupId)) },
                 onAddExpense = { navController.navigate(NavRoutes.AddExpense.route(groupId)) },
@@ -189,13 +190,5 @@ private fun NavHostController.navigateToTab(route: String) {
         popUpTo(graph.findStartDestination().id) { saveState = true }
         launchSingleTop = true
         restoreState = true
-    }
-}
-
-/** GroupOverview -> Home from the navigation model; pops everything above Home. */
-private fun NavHostController.navigateToHome() {
-    navigate(NavRoutes.Home.ROUTE) {
-        popUpTo(NavRoutes.Home.ROUTE)
-        launchSingleTop = true
     }
 }
