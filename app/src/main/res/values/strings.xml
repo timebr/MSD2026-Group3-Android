@@ -144,7 +144,8 @@
     <string name="add_expense_split_with_label">Split with</string>
     <string name="add_expense_split_everyone">Everyone</string>
     <string name="add_expense_receipt_label">Add receipt</string>
-    <string name="add_expense_receipt_placeholder">Receipts arrive in a later version.</string>
+    <string name="add_expense_receipt_preview_only">Preview only. Receipts are not uploaded yet.</string>
+    <string name="cd_clear_receipt">Remove receipt</string>
     <string name="add_expense_submit">Split expense</string>
     <string name="add_expense_added">Expense added</string>
     <string name="add_expense_no_group_title">No group</string>
@@ -180,6 +181,8 @@
     <string name="edit_profile_saved">Profile saved</string>
     <string name="edit_profile_email_hint">Your email is your account and cannot be changed here.</string>
     <string name="edit_profile_phone_locked">To use a different phone number you need a new account.</string>
+    <string name="edit_profile_photo_preview_only">Preview only. Uploading a profile photo is not available yet.</string>
+    <string name="cd_change_profile_photo">Change profile photo</string>
 
     <!-- Settings: activity notifications (FR2, FR7, FR8) -->
     <string name="notification_settings_title">Settings</string>
