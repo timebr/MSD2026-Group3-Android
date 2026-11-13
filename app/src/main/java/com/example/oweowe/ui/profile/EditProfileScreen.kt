@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -15,9 +14,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,11 +25,12 @@ import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.ui.components.AppTopBar
+import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonMessage
 
-/** Edit profile (FR2): name and phone; the email is the account and cannot change here. */
+/** Edit profile (FR2): avatar, editable name; email and phone are read-only here. */
 @Composable
 fun EditProfileScreen(
     container: AppContainer,
@@ -56,7 +56,6 @@ fun EditProfileScreen(
         EditProfileContent(
             state = state,
             onNameChange = viewModel::updateFullName,
-            onPhoneChange = viewModel::updatePhone,
             onSave = viewModel::saveProfile,
             modifier = Modifier.padding(padding),
         )
@@ -67,7 +66,6 @@ fun EditProfileScreen(
 fun EditProfileContent(
     state: EditProfileUiState,
     onNameChange: (String) -> Unit,
-    onPhoneChange: (String) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -78,19 +76,38 @@ fun EditProfileContent(
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
     ) {
+        InitialsAvatar(
+            name = state.fullName,
+            size = 72,
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+        )
         OutlinedTextField(
             value = state.fullName,
             onValueChange = onNameChange,
             label = { Text(stringResource(R.string.profile_name_label)) },
             isError = state.nameInvalid,
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+        )
+        OutlinedTextField(
+            value = state.email,
+            onValueChange = {},
+            enabled = false,
+            label = { Text(stringResource(R.string.profile_email_label)) },
+            supportingText = { Text(stringResource(R.string.edit_profile_email_hint)) },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
         )
         OutlinedTextField(
             value = state.phone,
-            onValueChange = onPhoneChange,
+            onValueChange = {},
+            enabled = false,
             label = { Text(stringResource(R.string.profile_phone_label)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            supportingText = { Text(stringResource(R.string.edit_profile_phone_locked)) },
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
@@ -124,11 +141,11 @@ private fun EditProfilePreview() {
         EditProfileContent(
             state = EditProfileUiState(
                 fullName = "Tim Test",
+                email = "tim@test.dk",
                 phone = "+45 11 11 11 11",
                 loadedFromMe = true,
             ),
             onNameChange = {},
-            onPhoneChange = {},
             onSave = {},
         )
     }
@@ -141,12 +158,12 @@ private fun EditProfileFailedPreview() {
         EditProfileContent(
             state = EditProfileUiState(
                 fullName = "Tim Test",
+                email = "tim@test.dk",
                 phone = "+45 11 11 11 11",
                 writeState = WriteState.Failed(ErrorReason.NETWORK),
                 loadedFromMe = true,
             ),
             onNameChange = {},
-            onPhoneChange = {},
             onSave = {},
         )
     }
