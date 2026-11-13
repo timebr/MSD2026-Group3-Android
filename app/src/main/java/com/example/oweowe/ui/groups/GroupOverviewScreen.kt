@@ -50,6 +50,7 @@ import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.ErrorState
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.LoadingState
+import com.example.oweowe.ui.components.MyBalanceText
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SignedAmount
 import com.example.oweowe.ui.components.TransactionRow
@@ -196,7 +197,11 @@ private fun GroupOverviewList(
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
-        items(state.members, key = { it.user.uid }) { member ->
+        // FR5: my own balance is one line, not a member row (S4).
+        item {
+            MyBalanceText(state.members.firstOrNull { it.isMe }?.balanceOre ?: 0L)
+        }
+        items(state.members.filter { !it.isMe }, key = { it.user.uid }) { member ->
             GroupMemberRow(
                 member = member,
                 remindEnabled = !state.busy,
@@ -238,7 +243,6 @@ private fun GroupMemberRow(
 ) {
     val owesMe = member.owesMeOre > 0
     val status = when {
-        member.isMe -> stringResource(R.string.group_member_this_is_you)
         owesMe -> stringResource(R.string.home_member_owes_you, formatKr(member.owesMeOre))
         member.iOweOre > 0 -> stringResource(R.string.home_you_owe_member, formatKr(member.iOweOre))
         else -> stringResource(R.string.home_member_settled)
@@ -253,30 +257,19 @@ private fun GroupMemberRow(
                 .weight(1f)
                 .padding(horizontal = 12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(member.user.fullName, style = MaterialTheme.typography.bodyLarge)
-                if (member.isMe) {
-                    Text(
-                        text = stringResource(R.string.common_you_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 6.dp),
-                    )
-                }
-            }
+            Text(member.user.fullName, style = MaterialTheme.typography.bodyLarge)
             Text(
                 text = status,
                 style = MaterialTheme.typography.bodySmall,
                 color = when {
-                    member.isMe -> MaterialTheme.colorScheme.onSurfaceVariant
                     owesMe -> MaterialTheme.colorScheme.primary
                     member.iOweOre > 0 -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
         }
-        SignedAmount(ore = if (member.isMe) member.balanceOre else member.owesMeOre - member.iOweOre)
-        if (owesMe && !member.isMe) {
+        SignedAmount(ore = member.owesMeOre - member.iOweOre)
+        if (owesMe) {
             TextButton(onClick = { onRemind(member) }, enabled = remindEnabled) {
                 Text(stringResource(R.string.home_remind))
             }
