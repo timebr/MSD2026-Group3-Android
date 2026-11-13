@@ -1,5 +1,7 @@
 package com.example.oweowe.ui.groups
 
+import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,13 +26,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
@@ -46,6 +54,9 @@ import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SignedAmount
 import com.example.oweowe.ui.components.TransactionRow
 import com.example.oweowe.ui.components.asString
+import com.example.oweowe.ui.components.rememberImageBitmap
+import java.io.File
+import kotlinx.coroutines.launch
 
 /** S4 Group overview (FR3, FR5, FR6, FR8). */
 @Composable
@@ -65,6 +76,10 @@ fun GroupOverviewScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val noReceiptMessage = stringResource(R.string.group_overview_no_receipt)
+    // FR10: the receipt path shown in the dialog, or null when it is closed.
+    var receiptToShow by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { message ->
             snackbarHostState.showSnackbar(message.asString(context))
@@ -87,8 +102,19 @@ fun GroupOverviewScreen(
             onManageMembers = { onManageMembers(groupId) },
             onAddExpense = { onAddExpense(groupId) },
             onRemind = viewModel::sendReminder,
+            onTransactionClick = { expense ->
+                val receipt = expense.receiptUri
+                if (receipt == null) {
+                    scope.launch { snackbarHostState.showSnackbar(noReceiptMessage) }
+                } else {
+                    receiptToShow = receipt
+                }
+            },
             modifier = Modifier.padding(padding),
         )
+    }
+    receiptToShow?.let { path ->
+        ReceiptDialog(path = path, onDismiss = { receiptToShow = null })
     }
 }
 
@@ -100,13 +126,14 @@ fun GroupOverviewContent(
     onAddExpense: () -> Unit,
     onRemind: (MemberRow) -> Unit,
     modifier: Modifier = Modifier,
+    onTransactionClick: (Expense) -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
             state.notFound -> ErrorState(message = stringResource(R.string.group_overview_not_found))
-            else -> GroupOverviewList(state, onEditGroup, onManageMembers, onAddExpense, onRemind)
+            else -> GroupOverviewList(state, onEditGroup, onManageMembers, onAddExpense, onRemind, onTransactionClick)
         }
     }
 }
@@ -118,6 +145,7 @@ private fun GroupOverviewList(
     onManageMembers: () -> Unit,
     onAddExpense: () -> Unit,
     onRemind: (MemberRow) -> Unit,
+    onTransactionClick: (Expense) -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
@@ -195,6 +223,7 @@ private fun GroupOverviewList(
             TransactionRow(
                 expense = transaction.expense,
                 payerName = transaction.payerName,
+                onClick = { onTransactionClick(transaction.expense) },
             )
         }
         item { Spacer(Modifier.height(16.dp)) }
@@ -250,6 +279,46 @@ private fun GroupMemberRow(
         if (owesMe && !member.isMe) {
             TextButton(onClick = { onRemind(member) }, enabled = remindEnabled) {
                 Text(stringResource(R.string.home_remind))
+            }
+        }
+    }
+}
+
+/** FR10: the receipt image of one transaction, read-only. */
+@Composable
+private fun ReceiptDialog(path: String, onDismiss: () -> Unit) {
+    val bitmap = rememberImageBitmap(Uri.fromFile(File(path)))
+    Dialog(onDismissRequest = onDismiss) {
+        Card {
+            Column(Modifier.padding(16.dp)) {
+                Text(
+                    text = stringResource(R.string.group_overview_receipt_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                if (bitmap == null) {
+                    Text(
+                        text = stringResource(R.string.group_overview_receipt_missing),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                } else {
+                    Image(
+                        bitmap = bitmap,
+                        contentDescription = stringResource(R.string.group_overview_receipt_title),
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 480.dp)
+                            .padding(top = 12.dp),
+                    )
+                }
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End),
+                ) {
+                    Text(stringResource(R.string.action_close))
+                }
             }
         }
     }

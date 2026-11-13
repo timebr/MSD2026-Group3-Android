@@ -56,6 +56,14 @@ fun TransactionRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (onClick != null && expense.receiptUri != null) {
+                Text(
+                    text = stringResource(R.string.transaction_view_receipt),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
             if (expense.syncStatus != SyncStatus.SYNCED) {
                 SyncStatusChip(
                     status = expense.syncStatus,
