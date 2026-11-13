@@ -11,18 +11,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -186,6 +183,13 @@ private fun GroupMemberRow(
     remindEnabled: Boolean,
     onRemind: (MemberRow) -> Unit,
 ) {
+    val owesMe = member.owesMeOre > 0
+    val status = when {
+        member.isMe -> stringResource(R.string.group_member_this_is_you)
+        owesMe -> stringResource(R.string.home_member_owes_you, formatKr(member.owesMeOre))
+        member.iOweOre > 0 -> stringResource(R.string.home_you_owe_member, formatKr(member.iOweOre))
+        else -> stringResource(R.string.home_member_settled)
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth(),
@@ -207,21 +211,21 @@ private fun GroupMemberRow(
                     )
                 }
             }
-            if (member.owesMeOre > 0) {
-                Text(
-                    text = stringResource(R.string.home_member_owes_you, formatKr(member.owesMeOre)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(
+                text = status,
+                style = MaterialTheme.typography.bodySmall,
+                color = when {
+                    member.isMe -> MaterialTheme.colorScheme.onSurfaceVariant
+                    owesMe -> MaterialTheme.colorScheme.primary
+                    member.iOweOre > 0 -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
         }
-        SignedAmount(ore = member.balanceOre)
-        if (member.owesMeOre > 0 && !member.isMe) {
-            IconButton(onClick = { onRemind(member) }, enabled = remindEnabled) {
-                Icon(
-                    imageVector = Icons.Filled.Notifications,
-                    contentDescription = stringResource(R.string.cd_remind_member, member.user.fullName),
-                )
+        SignedAmount(ore = if (member.isMe) member.balanceOre else member.owesMeOre - member.iOweOre)
+        if (owesMe && !member.isMe) {
+            TextButton(onClick = { onRemind(member) }, enabled = remindEnabled) {
+                Text(stringResource(R.string.home_remind))
             }
         }
     }
@@ -246,7 +250,7 @@ private fun GroupOverviewPreview() {
                     ),
                     MemberRow(
                         User(uid = "u3", fullName = "Jonas Test", email = "jonas@test.dk"),
-                        balanceOre = -4_333, isMe = false, canRemove = false, owesMeOre = 0,
+                        balanceOre = -4_333, isMe = false, canRemove = false, owesMeOre = 0, iOweOre = 4_333,
                     ),
                 ),
             ),

@@ -45,6 +45,8 @@ data class MemberRow(
     val canRemove: Boolean,
     /** > 0 when this member owes the signed-in user money (Remind, FR8). */
     val owesMeOre: Long,
+    /** > 0 when the signed-in user owes this member money (FR5, FR6). */
+    val iOweOre: Long = 0,
 )
 
 data class GroupOverviewUiState(
@@ -139,6 +141,7 @@ class GroupDetailsViewModel(
                         isMe = user.uid == meId,
                         canRemove = user.uid != meId && BalanceCalculator.isSettled(expenses, user.uid),
                         owesMeOre = BalanceCalculator.amountOwed(expenses, from = user.uid, to = meId),
+                        iOweOre = BalanceCalculator.amountOwed(expenses, from = meId, to = user.uid),
                     )
                 },
             busy = inputs.busy,
