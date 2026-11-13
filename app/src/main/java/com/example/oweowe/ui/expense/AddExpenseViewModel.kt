@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 /** Editable form fields of S11; kept separate from the loaded data. */
 private data class AddExpenseForm(
     val description: String = "",
+    val descriptionInvalid: Boolean = false,
     val category: String = "",
     val amountText: String = "",
     val amountInvalid: Boolean = false,
@@ -46,6 +47,7 @@ data class AddExpenseUiState(
     val selectedGroupId: String? = null,
     val members: List<User> = emptyList(),
     val description: String = "",
+    val descriptionInvalid: Boolean = false,
     val category: String = "",
     val amountText: String = "",
     val amountInvalid: Boolean = false,
@@ -109,6 +111,7 @@ class AddExpenseViewModel(
             selectedGroupId = group?.id,
             members = members,
             description = inputs.form.description,
+            descriptionInvalid = inputs.form.descriptionInvalid,
             category = inputs.form.category,
             amountText = inputs.form.amountText,
             amountInvalid = inputs.form.amountInvalid,
@@ -119,7 +122,7 @@ class AddExpenseViewModel(
     }
 
     fun updateDescription(description: String) =
-        form.update { it.copy(description = description) }
+        form.update { it.copy(description = description, descriptionInvalid = false) }
 
     fun updateCategory(category: String) =
         form.update { it.copy(category = category) }
@@ -167,9 +170,15 @@ class AddExpenseViewModel(
         val payerId = state.payerId
         if (groupId == null || payerId == null) return
 
+        // FR4: the purpose is required; the category stays optional.
         val amount = parseKr(state.amountText)
-        if (amount == null || amount <= 0) {
-            form.update { it.copy(amountInvalid = true) }
+        if (state.description.isBlank() || amount == null || amount <= 0) {
+            form.update {
+                it.copy(
+                    descriptionInvalid = state.description.isBlank(),
+                    amountInvalid = amount == null || amount <= 0,
+                )
+            }
             return
         }
         if (state.splitAmong.isEmpty()) return                  // the UI disables the button anyway

@@ -143,6 +143,7 @@
     <string name="add_expense_title">Add expense</string>
     <string name="add_expense_group_label">Group</string>
     <string name="add_expense_description_label">Purpose</string>
+    <string name="add_expense_description_invalid">Enter a purpose for this expense</string>
     <string name="add_expense_category_label">Category</string>
     <string name="add_expense_amount_label">Amount (kr)</string>
     <string name="add_expense_amount_invalid">Enter a valid amount, e.g. 123,45</string>
