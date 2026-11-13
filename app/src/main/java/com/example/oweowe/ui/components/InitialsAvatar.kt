@@ -71,7 +71,13 @@ fun InitialsAvatar(
         } else {
             Text(
                 text = initials,
-                style = MaterialTheme.typography.labelLarge,
+                // Chips use a small avatar, so the initials shrink with it
+                // instead of overflowing the circle.
+                style = if (size >= 40) {
+                    MaterialTheme.typography.labelLarge
+                } else {
+                    MaterialTheme.typography.labelSmall
+                },
                 color = onPalette[index],
                 textAlign = TextAlign.Center,
             )

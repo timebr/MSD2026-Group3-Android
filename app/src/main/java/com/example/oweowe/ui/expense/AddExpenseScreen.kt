@@ -52,12 +52,13 @@ import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
 import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
+import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
-import com.example.oweowe.ui.components.copyReceiptToAppStorage
 import com.example.oweowe.ui.components.canTakePhoto
+import com.example.oweowe.ui.components.copyReceiptToAppStorage
 import com.example.oweowe.ui.components.displayName
 import com.example.oweowe.ui.components.rememberCameraCapture
 import com.example.oweowe.ui.components.rememberImageBitmap
@@ -266,6 +267,11 @@ fun AddExpenseContent(
                             selected = member.uid in state.splitAmong,
                             onClick = { onToggleSplitMember(member.uid) },
                             label = { Text(member.fullName) },
+                            // FR4: "Split with (avatars)" — the member's initials
+                            // next to the name, so the split reads as people.
+                            leadingIcon = {
+                                InitialsAvatar(name = member.fullName, size = 20)
+                            },
                         )
                     }
                 }
