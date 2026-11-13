@@ -32,6 +32,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,11 +56,13 @@ import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
+import com.example.oweowe.ui.components.copyReceiptToAppStorage
 import com.example.oweowe.ui.components.displayName
 import com.example.oweowe.ui.components.rememberImageBitmap
 import com.example.oweowe.ui.components.rememberImagePicker
+import kotlinx.coroutines.launch
 
-/** S11 Add expense (FR4; FR10 is preview-only, nothing is uploaded). */
+/** S11 Add expense (FR4). FR10: a picked receipt is copied into app storage and kept with the expense. */
 @Composable
 fun AddExpenseScreen(
     container: AppContainer,
@@ -71,10 +75,14 @@ fun AddExpenseScreen(
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // FR10 is a could-have; the picker only previews and is lost when leaving.
+    // FR10: the picker only selects the image; it is copied on submit so the
+    // receipt survives leaving this screen.
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var receiptUri by rememberSaveable { mutableStateOf<String?>(null) }
     var receiptName by rememberSaveable { mutableStateOf<String?>(null) }
+    // Re-entrancy guard while the picked image is copied off the main thread.
+    var savingReceipt by remember { mutableStateOf(false) }
     val pickReceipt = rememberImagePicker { picked ->
         receiptUri = picked?.toString()
         receiptName = picked?.let { displayName(context, it) }
@@ -111,7 +119,21 @@ fun AddExpenseScreen(
                 receiptUri = null
                 receiptName = null
             },
-            onSubmit = viewModel::submit,
+            onSubmit = {
+                val picked = receiptUri
+                when {
+                    savingReceipt -> Unit
+                    picked == null -> viewModel.submit()
+                    else -> {
+                        savingReceipt = true
+                        scope.launch {
+                            val path = copyReceiptToAppStorage(context, Uri.parse(picked))
+                            savingReceipt = false
+                            viewModel.submit(receiptUri = path)
+                        }
+                    }
+                }
+            },
             modifier = Modifier.padding(padding),
         )
     }
@@ -263,7 +285,7 @@ fun AddExpenseContent(
                         }
                     }
                     Text(
-                        text = stringResource(R.string.add_expense_receipt_preview_only),
+                        text = stringResource(R.string.add_expense_receipt_saved_note),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

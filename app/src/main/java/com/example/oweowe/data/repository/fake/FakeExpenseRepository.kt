@@ -23,6 +23,7 @@ class FakeExpenseRepository(private val db: FakeBackend) : ExpenseRepository {
     override suspend fun addExpense(
         groupId: String, description: String, category: String,
         amountOre: Long, paidBy: String, splitAmong: List<String>,
+        receiptUri: String?,
     ): AppResult<Unit> {
         db.simulateCall()?.let { return AppResult.Error(it) }
         val me = db.currentUserId.value ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
@@ -36,6 +37,7 @@ class FakeExpenseRepository(private val db: FakeBackend) : ExpenseRepository {
             description = description.trim(), category = category, amountOre = amountOre,
             paidBy = paidBy, splitAmong = splitAmong.distinct(),
             createdBy = me, createdAt = db.now(), syncStatus = SyncStatus.PENDING,
+            receiptUri = receiptUri,
         )
         db.expenses.update { it + expense }
         markSyncedLater(expense.id)

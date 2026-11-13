@@ -12,6 +12,8 @@ interface ExpenseRepository {
         amountOre: Long,
         paidBy: String,
         splitAmong: List<String>,
+        /** FR10: the receipt image to keep with the expense, or null. */
+        receiptUri: String? = null,
     ): AppResult<Unit>
 
     /** Only the creator may delete; otherwise NOT_ALLOWED. */

@@ -160,7 +160,7 @@ class AddExpenseViewModel(
         return uiState.value.members.filter { group == null || it.uid in group.memberIds }
     }
 
-    fun submit() {
+    fun submit(receiptUri: String? = null) {
         if (writeState.value == WriteState.Busy) return
         val state = uiState.value
         val groupId = state.selectedGroupId
@@ -183,6 +183,7 @@ class AddExpenseViewModel(
                 amountOre = amount,
                 paidBy = payerId,
                 splitAmong = state.splitAmong.toList(),
+                receiptUri = receiptUri,
             )
             writeState.value = when (result) {
                 is AppResult.Success -> WriteState.Done
