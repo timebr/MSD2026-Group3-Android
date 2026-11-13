@@ -9,6 +9,9 @@ object SeedData {
     const val TIM = "u1"
     const val ANNA = "u2"
     const val JONAS = "u3"
+    const val MAJA = "u4"
+    const val NIELS = "u5"
+    const val SOFIE = "u6"
     const val FLAT = "g1"
 
     private const val START = 1_762_000_000_000L   // a fixed point in time
@@ -19,12 +22,19 @@ object SeedData {
         User(uid = TIM, fullName = "Tim Test", email = "tim@test.dk", phone = "+45 11 11 11 11", createdAt = START),
         User(uid = ANNA, fullName = "Anna Test", email = "anna@test.dk", phone = "+45 22 22 22 22", createdAt = START),
         User(uid = JONAS, fullName = "Jonas Test", email = "jonas@test.dk", phone = "+45 33 33 33 33", createdAt = START),
+        // People who are not in FLAT, so they can be added as members.
+        User(uid = MAJA, fullName = "Maja Contact", email = "maja@test.dk", phone = "+45 44 44 44 44", createdAt = START),
+        User(uid = NIELS, fullName = "Niels Contact", email = "niels@test.dk", phone = "+45 55 55 55 55", createdAt = START),
+        User(uid = SOFIE, fullName = "Sofie Contact", email = "sofie@test.dk", phone = "+45 66 66 66 66", createdAt = START),
     )
 
     val passwords = mapOf(
         "tim@test.dk" to "password",
         "anna@test.dk" to "password",
         "jonas@test.dk" to "password",
+        "maja@test.dk" to "password",
+        "niels@test.dk" to "password",
+        "sofie@test.dk" to "password",
     )
 
     val groups = listOf(
