@@ -11,17 +11,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -132,8 +129,19 @@ private fun HomeList(
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
-        items(state.memberBalances, key = { it.user.uid }) { member ->
-            MemberBalanceRow(member, isMe = member.user.uid == state.me?.uid, onRemind = onRemind)
+        val others = state.memberBalances.filter { it.user.uid != state.me?.uid }
+        if (others.isEmpty()) {
+            item {
+                Text(
+                    text = stringResource(R.string.home_balances_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            items(others, key = { it.user.uid }) { member ->
+                MemberBalanceRow(member, onRemind = onRemind)
+            }
         }
         item { Spacer(Modifier.height(16.dp)) }
     }
@@ -167,13 +175,18 @@ private fun CurrentGroupCard(state: HomeUiState, onAddExpense: () -> Unit) {
     }
 }
 
-/** Row for one member in the S3 balances list, with a Remind action (FR8). */
+/** Row for one member in the S3 balances list, with a Remind action (FR5, FR8). */
 @Composable
 private fun MemberBalanceRow(
     member: MemberBalance,
-    isMe: Boolean,
     onRemind: (MemberBalance) -> Unit,
 ) {
+    val owesMe = member.owesMeOre > 0
+    val status = when {
+        owesMe -> stringResource(R.string.home_member_owes_you, formatKr(member.owesMeOre))
+        member.iOweOre > 0 -> stringResource(R.string.home_you_owe_member, formatKr(member.iOweOre))
+        else -> stringResource(R.string.home_member_settled)
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth(),
@@ -184,32 +197,21 @@ private fun MemberBalanceRow(
                 .weight(1f)
                 .padding(horizontal = 12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(member.user.fullName, style = MaterialTheme.typography.bodyLarge)
-                if (isMe) {
-                    Text(
-                        text = stringResource(R.string.common_you_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 6.dp),
-                    )
-                }
-            }
-            if (member.owesMeOre > 0) {
-                Text(
-                    text = stringResource(R.string.home_member_owes_you, formatKr(member.owesMeOre)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(member.user.fullName, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = status,
+                style = MaterialTheme.typography.bodySmall,
+                color = when {
+                    owesMe -> MaterialTheme.colorScheme.primary
+                    member.iOweOre > 0 -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
         }
-        SignedAmount(ore = member.balanceOre)
-        if (member.owesMeOre > 0 && !isMe) {
-            IconButton(onClick = { onRemind(member) }) {
-                Icon(
-                    imageVector = Icons.Filled.Notifications,
-                    contentDescription = stringResource(R.string.cd_remind_member, member.user.fullName),
-                )
+        SignedAmount(ore = member.owesMeOre - member.iOweOre)
+        if (owesMe) {
+            TextButton(onClick = { onRemind(member) }) {
+                Text(stringResource(R.string.home_remind))
             }
         }
     }
@@ -242,6 +244,7 @@ private fun HomeContentPreview() {
                         User(uid = "u3", fullName = "Jonas Test", email = "jonas@test.dk"),
                         balanceOre = -4_333,
                         owesMeOre = 0,
+                        iOweOre = 4_333,
                     ),
                 ),
                 myBalanceOre = 1_667,

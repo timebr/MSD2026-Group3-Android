@@ -42,6 +42,8 @@ data class MemberBalance(
     val balanceOre: Long,
     /** > 0 when this member owes the signed-in user money (Remind button shows, FR8). */
     val owesMeOre: Long,
+    /** > 0 when the signed-in user owes this member money (FR5, FR6). */
+    val iOweOre: Long = 0,
 )
 
 data class HomeUiState(
@@ -133,6 +135,7 @@ class HomeViewModel(
                     user = user,
                     balanceOre = balances[user.uid] ?: 0,
                     owesMeOre = BalanceCalculator.amountOwed(expenses, from = user.uid, to = meId),
+                    iOweOre = BalanceCalculator.amountOwed(expenses, from = meId, to = user.uid),
                 )
             }
         return HomeUiState(

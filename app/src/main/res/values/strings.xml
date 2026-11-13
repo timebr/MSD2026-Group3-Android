@@ -64,7 +64,10 @@
     <string name="balance_you_owe">You owe %1$s</string>
     <string name="balance_even">You\'re even</string>
     <string name="home_member_owes_you">Owes you %1$s</string>
-    <string name="home_balances_title">Balances</string>
+    <string name="home_you_owe_member">You owe %1$s</string>
+    <string name="home_member_settled">Settled up</string>
+    <string name="home_balances_empty">Everyone is settled up.</string>
+    <string name="home_balances_title">Your balances</string>
     <string name="home_add_expense">Add expense</string>
     <string name="home_remind">Remind</string>
     <string name="home_reminder_sent">Reminder sent to %1$s</string>
