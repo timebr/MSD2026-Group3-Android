@@ -74,7 +74,13 @@
     <string name="home_go_to_groups">Go to groups</string>
     <string name="home_synced_in_background">\"%1$s\" was synced in the background.</string>
     <string name="cd_remind_member">Remind %1$s to pay</string>
-    <string name="home_group_section">Current group</string>
+    <string name="home_recent_group_label">Where you left off</string>
+    <string name="home_last_change_today">Last change today</string>
+    <string name="home_last_change_yesterday">Last change yesterday</string>
+    <plurals name="home_last_change_days_ago">
+        <item quantity="one">Last change %1$d day ago</item>
+        <item quantity="other">Last change %1$d days ago</item>
+    </plurals>
 
     <!-- Groups (S4) -->
     <string name="groups_title">Your groups</string>
