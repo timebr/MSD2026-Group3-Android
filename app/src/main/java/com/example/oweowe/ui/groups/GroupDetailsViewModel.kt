@@ -49,6 +49,12 @@ data class MemberRow(
     val iOweOre: Long = 0,
 )
 
+/** One transaction row on the Group overview (S4); the group is implied there. */
+data class GroupTransaction(
+    val expense: Expense,
+    val payerName: String,
+)
+
 data class GroupOverviewUiState(
     val loading: Boolean = true,
     val offline: Boolean = false,
@@ -57,6 +63,8 @@ data class GroupOverviewUiState(
     val group: Group? = null,
     val totalSpentOre: Long = 0,
     val members: List<MemberRow> = emptyList(),
+    /** The group's expenses and settlements, newest first (FR5). */
+    val transactions: List<GroupTransaction> = emptyList(),
     val busy: Boolean = false,
 )
 
@@ -126,6 +134,7 @@ class GroupDetailsViewModel(
     ): GroupOverviewUiState {
         val balances = BalanceCalculator.balances(expenses)
         val meId = inputs.me?.uid.orEmpty()
+        val userById = users.associateBy { it.uid }
         return GroupOverviewUiState(
             loading = false,
             offline = !inputs.online,
@@ -142,6 +151,14 @@ class GroupDetailsViewModel(
                         canRemove = user.uid != meId && BalanceCalculator.isSettled(expenses, user.uid),
                         owesMeOre = BalanceCalculator.amountOwed(expenses, from = user.uid, to = meId),
                         iOweOre = BalanceCalculator.amountOwed(expenses, from = meId, to = user.uid),
+                    )
+                },
+            transactions = expenses
+                .sortedByDescending { it.createdAt }
+                .map { expense ->
+                    GroupTransaction(
+                        expense = expense,
+                        payerName = userById[expense.paidBy]?.fullName.orEmpty(),
                     )
                 },
             busy = inputs.busy,

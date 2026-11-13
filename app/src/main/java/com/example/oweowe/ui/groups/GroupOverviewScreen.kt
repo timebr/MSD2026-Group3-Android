@@ -34,6 +34,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
 import com.example.oweowe.R
+import com.example.oweowe.data.model.Expense
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
 import com.example.oweowe.domain.formatKr
@@ -43,6 +44,7 @@ import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SignedAmount
+import com.example.oweowe.ui.components.TransactionRow
 import com.example.oweowe.ui.components.asString
 
 /** S4 Group overview (FR3, FR5, FR6, FR8). */
@@ -161,7 +163,7 @@ private fun GroupOverviewList(
         }
         item {
             Text(
-                text = stringResource(R.string.group_overview_members),
+                text = stringResource(R.string.group_overview_balances),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 8.dp),
             )
@@ -171,6 +173,28 @@ private fun GroupOverviewList(
                 member = member,
                 remindEnabled = !state.busy,
                 onRemind = onRemind,
+            )
+        }
+        item {
+            Text(
+                text = stringResource(R.string.group_overview_transactions),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+        if (state.transactions.isEmpty()) {
+            item {
+                Text(
+                    text = stringResource(R.string.group_overview_transactions_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        items(state.transactions, key = { it.expense.id }) { transaction ->
+            TransactionRow(
+                expense = transaction.expense,
+                payerName = transaction.payerName,
             )
         }
         item { Spacer(Modifier.height(16.dp)) }
@@ -251,6 +275,22 @@ private fun GroupOverviewPreview() {
                     MemberRow(
                         User(uid = "u3", fullName = "Jonas Test", email = "jonas@test.dk"),
                         balanceOre = -4_333, isMe = false, canRemove = false, owesMeOre = 0, iOweOre = 4_333,
+                    ),
+                ),
+                transactions = listOf(
+                    GroupTransaction(
+                        expense = Expense(
+                            id = "e2", groupId = "g1", description = "Pizza night", category = "Food",
+                            amountOre = 45_000, paidBy = "u2", createdBy = "u2", createdAt = 2,
+                        ),
+                        payerName = "Anna Test",
+                    ),
+                    GroupTransaction(
+                        expense = Expense(
+                            id = "e1", groupId = "g1", description = "Groceries", category = "Food",
+                            amountOre = 30_000, paidBy = "u1", createdBy = "u1", createdAt = 1,
+                        ),
+                        payerName = "Tim Test",
                     ),
                 ),
             ),
