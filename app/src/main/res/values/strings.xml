@@ -109,7 +109,6 @@
     <string name="group_overview_manage_members">Members</string>
     <string name="group_overview_not_found">This group no longer exists.</string>
     <string name="group_overview_reminder_sent">Reminder sent to %1$s</string>
-    <string name="group_member_this_is_you">This is you</string>
 
     <!-- Edit group (S7) -->
     <string name="edit_group_title">Edit group</string>
