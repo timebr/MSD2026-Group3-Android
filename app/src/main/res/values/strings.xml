@@ -98,6 +98,9 @@
     <!-- Group overview (S4 detail) -->
     <string name="group_overview_total_spent">Total spent</string>
     <string name="group_overview_members">Members</string>
+    <string name="group_overview_balances">Balances</string>
+    <string name="group_overview_transactions">Transactions</string>
+    <string name="group_overview_transactions_empty">No transactions yet.</string>
     <string name="group_overview_edit_details">Edit details</string>
     <string name="group_overview_manage_members">Members</string>
     <string name="group_overview_not_found">This group no longer exists.</string>
