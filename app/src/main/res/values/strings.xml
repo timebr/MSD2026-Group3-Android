@@ -188,7 +188,7 @@
     <!-- Edit profile -->
     <string name="edit_profile_title">Edit profile</string>
     <string name="edit_profile_saved">Profile saved</string>
-    <string name="edit_profile_email_hint">Your email is your account and cannot be changed here.</string>
+    <string name="edit_profile_email_hint">You sign in with this email.</string>
     <string name="edit_profile_phone_locked">To use a different phone number you need a new account.</string>
     <string name="edit_profile_photo_hint">Tap the photo to change it.</string>
     <string name="cd_change_profile_photo">Change profile photo</string>

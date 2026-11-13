@@ -1,6 +1,8 @@
 package com.example.oweowe.ui.profile
 
 import com.example.oweowe.data.connectivity.AlwaysOnlineObserver
+import com.example.oweowe.data.repository.AppResult
+import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.data.repository.fake.FakeAuthRepository
 import com.example.oweowe.data.repository.fake.FakeBackend
 import com.example.oweowe.data.repository.fake.FakeUserRepository
@@ -71,6 +73,53 @@ class ProfileViewModelTest {
 
         assertTrue(viewModel.editState.value.nameInvalid)
         assertEquals("Tim Test", db.users.value.first { it.uid == SeedData.TIM }.fullName)
+    }
+
+    @Test
+    fun saveProfile_updatesTheEmailAndMovesThePasswordWithIt() = runTest {
+        val db = backend()
+        val viewModel = viewModel(db)
+        viewModel.editState.first { it.loadedFromMe }
+
+        viewModel.updateEmail("tim.new@test.dk")
+        viewModel.saveProfile()
+        advanceUntilIdle()
+
+        val signedIn = FakeAuthRepository(db).signIn("tim.new@test.dk", "password")
+        assertTrue(signedIn is AppResult.Success)
+        assertEquals("tim.new@test.dk", me(db).email)
+        assertEquals("+45 11 11 11 11", me(db).phone)
+    }
+
+    @Test
+    fun saveProfile_invalidEmail_flagsTheFieldAndDoesNotWrite() = runTest {
+        val db = backend()
+        val viewModel = viewModel(db)
+        viewModel.editState.first { it.loadedFromMe }
+
+        viewModel.updateEmail("tim.test.dk")
+        viewModel.saveProfile()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.editState.value.emailInvalid)
+        assertEquals("tim@test.dk", me(db).email)
+    }
+
+    @Test
+    fun saveProfile_emailOfAnotherUser_fails() = runTest {
+        val db = backend()
+        val viewModel = viewModel(db)
+        viewModel.editState.first { it.loadedFromMe }
+
+        viewModel.updateEmail("anna@test.dk")
+        viewModel.saveProfile()
+        advanceUntilIdle()
+
+        assertEquals(
+            WriteState.Failed(ErrorReason.EMAIL_ALREADY_IN_USE),
+            viewModel.editState.value.writeState,
+        )
+        assertEquals("tim@test.dk", me(db).email)
     }
 
     @Test
