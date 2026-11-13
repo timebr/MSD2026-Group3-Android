@@ -48,6 +48,7 @@ import com.example.oweowe.data.model.User
 import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.OfflineBanner
+import com.example.oweowe.ui.components.SignedAmount
 import com.example.oweowe.ui.components.asString
 import com.example.oweowe.ui.groups.contacts.ContactSuggestion
 import com.example.oweowe.ui.groups.contacts.DEMO_CONTACTS
@@ -428,6 +429,13 @@ private fun ManageMemberRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        // FR5: everyone's net balance, so the group can see who owes or gets
+        // money and how much, next to Remove.
+        SignedAmount(
+            ore = member.balanceOre,
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(end = 12.dp),
+        )
         OutlinedButton(
             onClick = { onRemoveMember(member) },
             enabled = enabled && member.canRemove,
@@ -448,11 +456,15 @@ private fun ManageMembersPreview() {
                 members = listOf(
                     MemberRow(
                         User(uid = "u1", fullName = "Tim Test", email = "tim@test.dk"),
-                        balanceOre = 0, isMe = true, canRemove = false, owesMeOre = 0,
+                        balanceOre = 1_667, isMe = true, canRemove = false, owesMeOre = 0,
                     ),
                     MemberRow(
                         User(uid = "u2", fullName = "Anna Test", email = "anna@test.dk"),
-                        balanceOre = 0, isMe = false, canRemove = true, owesMeOre = 0,
+                        balanceOre = -2_700, isMe = false, canRemove = false, owesMeOre = 2_700,
+                    ),
+                    MemberRow(
+                        User(uid = "u3", fullName = "Jonas Test", email = "jonas@test.dk"),
+                        balanceOre = 1_033, isMe = false, canRemove = false, owesMeOre = 0,
                     ),
                 ),
             ),
