@@ -24,7 +24,11 @@ fun parseKr(text: String): Long? {
     val parts = cleaned.split(',')
     if (parts.size > 2) return null
     val whole = parts[0].ifEmpty { return null }
-    val fraction = if (parts.size == 2) parts[1].padEnd(2, '0').take(2) else "00"
+    val fraction = when {
+        parts.size == 1 -> "00"
+        parts[1].length > 2 -> return null
+        else -> parts[1].padEnd(2, '0')
+    }
 
     if (whole.any { !it.isDigit() } || fraction.any { !it.isDigit() }) return null
     if (whole.length > 9) return null                    // far beyond DKK amounts; blocks overflow
