@@ -111,7 +111,11 @@ fun ProfileContent(
                             .fillMaxWidth()
                             .padding(16.dp),
                     ) {
-                        InitialsAvatar(name = state.me.fullName, size = 56)
+                        InitialsAvatar(
+                            name = state.me.fullName,
+                            size = 56,
+                            photoPath = state.me.photoUri,
+                        )
                         Column(
                             Modifier
                                 .weight(1f)
