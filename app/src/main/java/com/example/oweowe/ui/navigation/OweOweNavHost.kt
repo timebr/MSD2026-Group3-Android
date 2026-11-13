@@ -132,12 +132,14 @@ fun OweOweNavHost(
                 entry.arguments?.getString(NavRoutes.GroupOverview.GROUP_ID_ARG).orEmpty()
             // The navigation model: leaving a group overview goes back to the
             // Groups tab (where the group was opened), so the system back gesture
-            // follows the top bar's back arrow.
-            BackHandler { navController.navigateToTab(NavRoutes.Groups.ROUTE) }
+            // follows the top bar's back arrow. We pop to the existing Groups
+            // entry instead of switching tabs, otherwise the saved Groups stack
+            // would restore with this overview still on top.
+            BackHandler { navController.backToGroups() }
             GroupOverviewScreen(
                 container = container,
                 groupId = groupId,
-                onBack = { navController.navigateToTab(NavRoutes.Groups.ROUTE) },
+                onBack = { navController.backToGroups() },
                 onEditGroup = { navController.navigate(NavRoutes.EditGroup.route(groupId)) },
                 onManageMembers = { navController.navigate(NavRoutes.ManageMembers.route(groupId)) },
                 onAddExpense = { navController.navigate(NavRoutes.AddExpense.route(groupId)) },
@@ -181,6 +183,17 @@ fun OweOweNavHost(
                 onBack = { navController.popBackStack() },
             )
         }
+    }
+}
+
+/**
+ * Leaving a group overview returns to the Groups tab without losing its
+ * position (FR3, S4). Falls back to a tab switch when Groups is not in the
+ * stack, e.g. after the process was restored.
+ */
+private fun NavHostController.backToGroups() {
+    if (!popBackStack(NavRoutes.Groups.ROUTE, inclusive = false)) {
+        navigateToTab(NavRoutes.Groups.ROUTE)
     }
 }
 
