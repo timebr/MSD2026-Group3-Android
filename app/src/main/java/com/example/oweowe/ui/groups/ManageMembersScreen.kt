@@ -405,7 +405,7 @@ private fun ManageMemberRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        InitialsAvatar(name = member.user.fullName)
+        InitialsAvatar(name = member.user.fullName, photoPath = member.user.photoUri)
         Column(
             modifier = Modifier
                 .weight(1f)

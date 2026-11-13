@@ -1,6 +1,5 @@
 package com.example.oweowe.ui.profile
 
-import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,14 +20,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
@@ -38,11 +41,13 @@ import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
+import com.example.oweowe.ui.components.copyAvatarToAppStorage
 import com.example.oweowe.ui.components.errorReasonMessage
 import com.example.oweowe.ui.components.rememberImageBitmap
 import com.example.oweowe.ui.components.rememberImagePicker
+import kotlinx.coroutines.launch
 
-/** Edit profile (FR2): avatar, editable name; email and phone are read-only here. */
+/** Edit profile (FR2): photo, name, email; the phone stays read-only. */
 @Composable
 fun EditProfileScreen(
     container: AppContainer,
@@ -50,6 +55,15 @@ fun EditProfileScreen(
 ) {
     val viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.factory(container))
     val state by viewModel.editState.collectAsStateWithLifecycle()
+
+    // FR2: the picker only selects the image; it is copied on save so the
+    // photo survives leaving this screen and restarting the app.
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var pickedPhoto by rememberSaveable { mutableStateOf<String?>(null) }
+    // Re-entrancy guard while the picked photo is copied off the main thread.
+    var savingPhoto by remember { mutableStateOf(false) }
+    val pickPhoto = rememberImagePicker { picked -> pickedPhoto = picked?.toString() }
 
     LaunchedEffect(state.writeState) {
         if (state.writeState == WriteState.Done) {
@@ -68,8 +82,29 @@ fun EditProfileScreen(
         EditProfileContent(
             state = state,
             onNameChange = viewModel::updateFullName,
-            onSave = viewModel::saveProfile,
+            onSave = {
+                val picked = pickedPhoto
+                when {
+                    savingPhoto -> Unit
+                    picked == null -> viewModel.saveProfile()
+                    else -> {
+                        savingPhoto = true
+                        scope.launch {
+                            val path = copyAvatarToAppStorage(context, picked.toUri())
+                            savingPhoto = false
+                            if (path != null) {
+                                pickedPhoto = null
+                                viewModel.saveProfile(photoPath = path)
+                            } else {
+                                viewModel.onPhotoSaveFailed()
+                            }
+                        }
+                    }
+                }
+            },
             modifier = Modifier.padding(padding),
+            pickedPhoto = pickedPhoto,
+            onPickPhoto = pickPhoto,
         )
     }
 }
@@ -80,10 +115,11 @@ fun EditProfileContent(
     onNameChange: (String) -> Unit,
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A photo picked in this session, not saved yet. */
+    pickedPhoto: String? = null,
+    onPickPhoto: () -> Unit = {},
 ) {
-    var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
-    val pickPhoto = rememberImagePicker { picked -> photoUri = picked?.toString() }
-    val photo = rememberImageBitmap(photoUri?.let(Uri::parse))
+    val picked = rememberImageBitmap(pickedPhoto?.toUri())
 
     Column(
         verticalArrangement = Arrangement.Center,
@@ -98,21 +134,21 @@ fun EditProfileContent(
                 .clip(CircleShape)
                 .clickable(
                     onClickLabel = stringResource(R.string.cd_change_profile_photo),
-                    onClick = pickPhoto,
+                    onClick = onPickPhoto,
                 ),
         ) {
-            if (photo != null) {
+            if (picked != null) {
                 Image(
-                    bitmap = photo,
+                    bitmap = picked,
                     contentDescription = null,
                     modifier = Modifier.size(72.dp),
                 )
             } else {
-                InitialsAvatar(name = state.fullName, size = 72)
+                InitialsAvatar(name = state.fullName, size = 72, photoPath = state.photoUri)
             }
         }
         Text(
-            text = stringResource(R.string.edit_profile_photo_preview_only),
+            text = stringResource(R.string.edit_profile_photo_hint),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier

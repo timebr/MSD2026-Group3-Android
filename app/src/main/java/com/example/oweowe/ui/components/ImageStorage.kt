@@ -7,8 +7,9 @@ import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** App-private folder for receipt images. Nothing is uploaded anywhere (FR10). */
+/** App-private folders. Nothing is uploaded anywhere (FR2, FR10). */
 private const val RECEIPT_DIR = "receipts"
+private const val AVATAR_DIR = "avatars"
 
 /**
  * Copies a picked image into app-private storage and returns its absolute path,
@@ -21,9 +22,14 @@ private const val RECEIPT_DIR = "receipts"
 suspend fun copyReceiptToAppStorage(context: Context, uri: Uri): String? =
     copyImageToAppStorage(context, uri, RECEIPT_DIR)
 
+/** Same, for the profile photo (FR2). */
+suspend fun copyAvatarToAppStorage(context: Context, uri: Uri): String? =
+    copyImageToAppStorage(context, uri, AVATAR_DIR)
+
 /**
- * Shared by every image the app keeps on the device (receipts today): the file
- * name is random, so two picked files can never overwrite each other.
+ * Shared by every image the app keeps on the device (receipts and profile
+ * photos): the file name is random, so two picked files can never overwrite
+ * each other.
  */
 private suspend fun copyImageToAppStorage(context: Context, uri: Uri, folder: String): String? =
     withContext(Dispatchers.IO) {

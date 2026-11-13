@@ -17,8 +17,19 @@ class FakeUserRepository(private val db: FakeBackend) : UserRepository {
     override fun observeUsers(uids: List<String>): Flow<List<User>> =
         db.users.map { users -> users.filter { it.uid in uids } }
 
-    override suspend fun updateProfile(fullName: String, phone: String): AppResult<Unit> =
-        updateMe { it.copy(fullName = fullName.trim(), phone = phone.trim()) }
+    override suspend fun updateProfile(
+        fullName: String,
+        phone: String,
+        photoUri: String?,
+    ): AppResult<Unit> =
+        updateMe {
+            it.copy(
+                fullName = fullName.trim(),
+                phone = phone.trim(),
+                // null means "no new photo", so saving the name keeps the old one.
+                photoUri = photoUri ?: it.photoUri,
+            )
+        }
 
     override suspend fun setPushEnabled(enabled: Boolean): AppResult<Unit> =
         updateMe { it.copy(pushEnabled = enabled) }
