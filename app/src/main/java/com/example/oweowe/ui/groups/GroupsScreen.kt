@@ -28,6 +28,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.model.Group
+import com.example.oweowe.domain.formatKr
 import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
 import com.example.oweowe.ui.components.LoadingState
@@ -84,8 +85,8 @@ fun GroupsContent(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                items(state.groups, key = { it.id }) { group ->
-                    GroupCard(group = group, onClick = { onOpenGroup(group.id) })
+                items(state.groups, key = { it.group.id }) { summary ->
+                    GroupCard(summary = summary, onClick = { onOpenGroup(summary.group.id) })
                 }
             }
         }
@@ -93,7 +94,13 @@ fun GroupsContent(
 }
 
 @Composable
-private fun GroupCard(group: Group, onClick: () -> Unit) {
+private fun GroupCard(summary: GroupSummary, onClick: () -> Unit) {
+    val group = summary.group
+    val status = when {
+        summary.myNetOre > 0 -> stringResource(R.string.groups_you_are_owed, formatKr(summary.myNetOre))
+        summary.myNetOre < 0 -> stringResource(R.string.groups_you_owe, formatKr(-summary.myNetOre))
+        else -> stringResource(R.string.groups_settled)
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -114,6 +121,16 @@ private fun GroupCard(group: Group, onClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
             )
+            Text(
+                text = status,
+                style = MaterialTheme.typography.bodyMedium,
+                color = when {
+                    summary.myNetOre > 0 -> MaterialTheme.colorScheme.primary
+                    summary.myNetOre < 0 -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.padding(top = 4.dp),
+            )
         }
     }
 }
@@ -126,8 +143,14 @@ private fun GroupsContentPreview() {
             state = GroupsUiState(
                 loading = false,
                 groups = listOf(
-                    Group(id = "g1", name = "Flat 4B", description = "Shared flat expenses", memberIds = listOf("u1", "u2", "u3")),
-                    Group(id = "g2", name = "Trip to Berlin", description = "", memberIds = listOf("u1", "u4")),
+                    GroupSummary(
+                        Group(id = "g1", name = "Flat 4B", description = "Shared flat expenses", memberIds = listOf("u1", "u2", "u3")),
+                        myNetOre = 12_500,
+                    ),
+                    GroupSummary(
+                        Group(id = "g2", name = "Trip to Berlin", description = "", memberIds = listOf("u1", "u4")),
+                        myNetOre = -3_250,
+                    ),
                 ),
             ),
             onOpenGroup = {},
