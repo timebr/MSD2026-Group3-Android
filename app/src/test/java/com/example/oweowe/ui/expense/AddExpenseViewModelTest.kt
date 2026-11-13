@@ -84,6 +84,35 @@ class AddExpenseViewModelTest {
     }
 
     @Test
+    fun submit_blankPurpose_marksTheFieldInsteadOfSubmitting() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db)
+        viewModel.warmUp()
+        val expensesBefore = db.expenses.value.size
+
+        viewModel.updateAmount("16")            // no purpose given
+        viewModel.submit()
+
+        assertEquals(true, viewModel.uiState.value.descriptionInvalid)
+        assertEquals(WriteState.Idle, viewModel.uiState.value.writeState)
+        assertEquals(expensesBefore, db.expenses.value.size)
+    }
+
+    @Test
+    fun submit_withoutCategory_stillSaves() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db)
+        viewModel.warmUp()
+
+        viewModel.updateDescription("Dinner")   // the category stays optional
+        viewModel.updateAmount("16")
+        viewModel.submit()
+
+        assertEquals(WriteState.Done, viewModel.uiState.value.writeState)
+        assertEquals("", db.expenses.value.last().category)
+    }
+
+    @Test
     fun submit_valid_addsPendingExpenseInOreWhichThenSyncs() = runTest {
         val db = backend(backgroundScope)
         val viewModel = viewModel(db)

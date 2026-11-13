@@ -205,6 +205,12 @@ fun AddExpenseContent(
                     value = state.description,
                     onValueChange = onDescriptionChange,
                     label = { Text(stringResource(R.string.add_expense_description_label)) },
+                    isError = state.descriptionInvalid,
+                    supportingText = if (state.descriptionInvalid) {
+                        { Text(stringResource(R.string.add_expense_description_invalid)) }
+                    } else {
+                        null
+                    },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
