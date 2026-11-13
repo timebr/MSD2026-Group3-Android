@@ -76,7 +76,6 @@
     <string name="home_no_groups_message">Create a group to start sharing expenses.</string>
     <string name="home_go_to_groups">Go to groups</string>
     <string name="home_synced_in_background">\"%1$s\" was synced in the background.</string>
-    <string name="cd_remind_member">Remind %1$s to pay</string>
     <string name="home_recent_group_label">Most recent activity</string>
 
     <!-- Groups (S4) -->
@@ -103,6 +102,7 @@
     <string name="group_overview_manage_members">Members</string>
     <string name="group_overview_not_found">This group no longer exists.</string>
     <string name="group_overview_reminder_sent">Reminder sent to %1$s</string>
+    <string name="group_member_this_is_you">This is you</string>
 
     <!-- Edit group (S7) -->
     <string name="edit_group_title">Edit group</string>
