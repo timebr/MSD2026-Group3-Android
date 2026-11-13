@@ -178,6 +178,8 @@
     <!-- Edit profile -->
     <string name="edit_profile_title">Edit profile</string>
     <string name="edit_profile_saved">Profile saved</string>
+    <string name="edit_profile_email_hint">Your email is your account and cannot be changed here.</string>
+    <string name="edit_profile_phone_locked">To use a different phone number you need a new account.</string>
 
     <!-- Settings: activity notifications (FR2, FR7, FR8) -->
     <string name="notification_settings_title">Settings</string>

@@ -40,6 +40,7 @@ data class ProfileUiState(
 /** Edit-profile form (S6 / Edit profile screen). */
 data class EditProfileUiState(
     val fullName: String = "",
+    val email: String = "",
     val phone: String = "",
     val nameInvalid: Boolean = false,
     val writeState: WriteState = WriteState.Idle,
@@ -78,7 +79,16 @@ class ProfileViewModel(
         viewModelScope.launch {
             val me = userRepository.observeMe().filterNotNull().first()
             _editState.update {
-                if (it.loadedFromMe) it else it.copy(fullName = me.fullName, phone = me.phone, loadedFromMe = true)
+                if (it.loadedFromMe) {
+                    it
+                } else {
+                    it.copy(
+                        fullName = me.fullName,
+                        email = me.email,
+                        phone = me.phone,
+                        loadedFromMe = true,
+                    )
+                }
             }
         }
     }
@@ -87,9 +97,6 @@ class ProfileViewModel(
 
     fun updateFullName(name: String) =
         _editState.update { it.copy(fullName = name, nameInvalid = false, writeState = WriteState.Idle) }
-
-    fun updatePhone(phone: String) =
-        _editState.update { it.copy(phone = phone, writeState = WriteState.Idle) }
 
     fun saveProfile() {
         val state = _editState.value
@@ -100,7 +107,7 @@ class ProfileViewModel(
         }
         _editState.update { it.copy(writeState = WriteState.Busy) }
         viewModelScope.launch {
-            when (val result = userRepository.updateProfile(state.fullName.trim(), state.phone.trim())) {
+            when (val result = userRepository.updateProfile(state.fullName.trim(), state.phone)) {
                 is AppResult.Success -> {
                     _editState.update { it.copy(writeState = WriteState.Done) }
                     _messages.emit(UiMessage(R.string.edit_profile_saved))
