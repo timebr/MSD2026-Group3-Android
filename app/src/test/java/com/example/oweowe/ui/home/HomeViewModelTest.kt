@@ -78,9 +78,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         val state = viewModel.uiState.first { it.group?.id == secondId }
-        val created = db.expenses.value.last { it.groupId == secondId }
         assertEquals(secondId, state.group?.id)
-        assertEquals(created.createdAt, state.lastActivityAt)
     }
 
     @Test

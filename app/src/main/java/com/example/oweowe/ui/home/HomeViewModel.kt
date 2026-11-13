@@ -52,8 +52,6 @@ data class HomeUiState(
     val memberBalances: List<MemberBalance> = emptyList(),
     val myBalanceOre: Long = 0,
     val reminderBusy: Boolean = false,
-    /** When the shown group last changed: newest expense, else the group's creation. */
-    val lastActivityAt: Long = 0,
 )
 
 /**
@@ -145,8 +143,6 @@ class HomeViewModel(
             memberBalances = rows,
             myBalanceOre = balances[meId] ?: 0,
             reminderBusy = inputs.busy,
-            lastActivityAt = (expenses.maxOfOrNull { it.createdAt } ?: 0L)
-                .coerceAtLeast(group.createdAt),
         )
     }
 
