@@ -46,6 +46,7 @@ data class EditProfileUiState(
     /** FR2: the photo already saved with the profile, or null for initials. */
     val photoUri: String? = null,
     val nameInvalid: Boolean = false,
+    val emailInvalid: Boolean = false,
     val writeState: WriteState = WriteState.Idle,
     val loadedFromMe: Boolean = false,
 )
@@ -102,6 +103,9 @@ class ProfileViewModel(
     fun updateFullName(name: String) =
         _editState.update { it.copy(fullName = name, nameInvalid = false, writeState = WriteState.Idle) }
 
+    fun updateEmail(email: String) =
+        _editState.update { it.copy(email = email, emailInvalid = false, writeState = WriteState.Idle) }
+
     /**
      * FR2: saves the profile. [photoPath] is the already-copied photo (the
      * screen copies the picked Uri before calling this); null keeps the
@@ -110,13 +114,21 @@ class ProfileViewModel(
     fun saveProfile(photoPath: String? = null) {
         val state = _editState.value
         if (state.writeState == WriteState.Busy) return
-        if (state.fullName.isBlank()) {
-            _editState.update { it.copy(nameInvalid = true) }
+        // Same rule the fake backend applies, so an obviously wrong address
+        // is caught before the write instead of coming back as an error.
+        val emailInvalid = !state.email.trim().contains("@")
+        if (state.fullName.isBlank() || emailInvalid) {
+            _editState.update { it.copy(nameInvalid = state.fullName.isBlank(), emailInvalid = emailInvalid) }
             return
         }
         _editState.update { it.copy(writeState = WriteState.Busy) }
         viewModelScope.launch {
-            when (val result = userRepository.updateProfile(state.fullName.trim(), state.phone, photoPath)) {
+            val result = userRepository.updateProfile(
+                fullName = state.fullName.trim(),
+                email = state.email.trim(),
+                photoUri = photoPath,
+            )
+            when (result) {
                 is AppResult.Success -> {
                     _editState.update { it.copy(writeState = WriteState.Done) }
                     _messages.emit(UiMessage(R.string.edit_profile_saved))
