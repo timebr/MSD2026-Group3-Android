@@ -85,6 +85,9 @@
     <string name="groups_empty_message">Create your first group to start sharing expenses.</string>
     <string name="groups_create">Create group</string>
     <string name="groups_open_group">Open group %1$s</string>
+    <string name="groups_you_are_owed">You are owed %1$s</string>
+    <string name="groups_you_owe">You owe %1$s</string>
+    <string name="groups_settled">Settled up</string>
     <string name="groups_created">Group created</string>
 
     <!-- Create group (S9) -->
