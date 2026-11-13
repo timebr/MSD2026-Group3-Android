@@ -1,11 +1,17 @@
 package com.example.oweowe.ui.profile
 
+import android.net.Uri
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -14,8 +20,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -29,6 +39,8 @@ import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonMessage
+import com.example.oweowe.ui.components.rememberImageBitmap
+import com.example.oweowe.ui.components.rememberImagePicker
 
 /** Edit profile (FR2): avatar, editable name; email and phone are read-only here. */
 @Composable
@@ -69,6 +81,10 @@ fun EditProfileContent(
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var photoUri by rememberSaveable { mutableStateOf<String?>(null) }
+    val pickPhoto = rememberImagePicker { picked -> photoUri = picked?.toString() }
+    val photo = rememberImageBitmap(photoUri?.let(Uri::parse))
+
     Column(
         verticalArrangement = Arrangement.Center,
         modifier = modifier
@@ -76,10 +92,32 @@ fun EditProfileContent(
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
     ) {
-        InitialsAvatar(
-            name = state.fullName,
-            size = 72,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .clip(CircleShape)
+                .clickable(
+                    onClickLabel = stringResource(R.string.cd_change_profile_photo),
+                    onClick = pickPhoto,
+                ),
+        ) {
+            if (photo != null) {
+                Image(
+                    bitmap = photo,
+                    contentDescription = null,
+                    modifier = Modifier.size(72.dp),
+                )
+            } else {
+                InitialsAvatar(name = state.fullName, size = 72)
+            }
+        }
+        Text(
+            text = stringResource(R.string.edit_profile_photo_preview_only),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(top = 8.dp),
         )
         OutlinedTextField(
             value = state.fullName,

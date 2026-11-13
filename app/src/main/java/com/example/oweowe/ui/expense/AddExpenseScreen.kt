@@ -1,5 +1,7 @@
 package com.example.oweowe.ui.expense
 
+import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -10,25 +12,32 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -45,9 +54,11 @@ import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
-import kotlinx.coroutines.launch
+import com.example.oweowe.ui.components.displayName
+import com.example.oweowe.ui.components.rememberImageBitmap
+import com.example.oweowe.ui.components.rememberImagePicker
 
-/** S11 Add expense (FR4, FR10 placeholder). */
+/** S11 Add expense (FR4; FR10 is preview-only, nothing is uploaded). */
 @Composable
 fun AddExpenseScreen(
     container: AppContainer,
@@ -60,11 +71,14 @@ fun AddExpenseScreen(
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    // Resolved here, not in the click handler: LocalContext reads don't survive
-    // configuration changes.
-    val receiptPlaceholder = stringResource(R.string.add_expense_receipt_placeholder)
+    // FR10 is a could-have; the picker only previews and is lost when leaving.
+    val context = LocalContext.current
+    var receiptUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var receiptName by rememberSaveable { mutableStateOf<String?>(null) }
+    val pickReceipt = rememberImagePicker { picked ->
+        receiptUri = picked?.toString()
+        receiptName = picked?.let { displayName(context, it) }
+    }
     LaunchedEffect(state.writeState) {
         if (state.writeState == WriteState.Done) {
             viewModel.resetWriteState()
@@ -80,7 +94,6 @@ fun AddExpenseScreen(
                 onBack = onBack,
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         AddExpenseContent(
             state = state,
@@ -91,11 +104,12 @@ fun AddExpenseScreen(
             onPayerSelected = viewModel::selectPayer,
             onToggleSplitMember = viewModel::toggleSplitMember,
             onSelectAllMembers = viewModel::selectAllMembers,
-            onAddReceipt = {
-                // FR10 is a could-have; the backend has no receipt storage yet.
-                scope.launch {
-                    snackbarHostState.showSnackbar(receiptPlaceholder)
-                }
+            onAddReceipt = pickReceipt,
+            receiptUri = receiptUri,
+            receiptName = receiptName,
+            onClearReceipt = {
+                receiptUri = null
+                receiptName = null
             },
             onSubmit = viewModel::submit,
             modifier = Modifier.padding(padding),
@@ -117,6 +131,9 @@ fun AddExpenseContent(
     onAddReceipt: () -> Unit,
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
+    receiptUri: String? = null,
+    receiptName: String? = null,
+    onClearReceipt: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
@@ -215,6 +232,41 @@ fun AddExpenseContent(
                 }
                 OutlinedButton(onClick = onAddReceipt, modifier = Modifier.padding(top = 16.dp)) {
                     Text(stringResource(R.string.add_expense_receipt_label))
+                }
+                val receipt = rememberImageBitmap(receiptUri?.let(Uri::parse))
+                if (receipt != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                    ) {
+                        Image(
+                            bitmap = receipt,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                        )
+                        Text(
+                            text = receiptName.orEmpty(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 12.dp),
+                        )
+                        IconButton(onClick = onClearReceipt) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.cd_clear_receipt),
+                            )
+                        }
+                    }
+                    Text(
+                        text = stringResource(R.string.add_expense_receipt_preview_only),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 SubmitButton(
                     state = state.writeState,
