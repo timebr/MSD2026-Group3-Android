@@ -22,6 +22,7 @@ import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.components.UiMessage
 import com.example.oweowe.ui.components.errorReasonRes
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -50,6 +52,8 @@ data class HomeUiState(
     val memberBalances: List<MemberBalance> = emptyList(),
     val myBalanceOre: Long = 0,
     val reminderBusy: Boolean = false,
+    /** When the shown group last changed: newest expense, else the group's creation. */
+    val lastActivityAt: Long = 0,
 )
 
 /**
@@ -72,11 +76,22 @@ class HomeViewModel(
     private val _messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 8)
     val messages: SharedFlow<UiMessage> = _messages.asSharedFlow()
 
-    /** The group Home currently shows; the first of "my groups" for now. */
-    private val currentGroup = combine(
-        authRepository.currentUserId,
-        groupRepository.observeMyGroups(),
-    ) { _, groups -> groups.firstOrNull() }
+    /** The group the S3 card shows: the one with the most recent activity (FR5). */
+    private val currentGroup: Flow<Group?> =
+        groupRepository.observeMyGroups().flatMapLatest { groups ->
+            if (groups.isEmpty()) {
+                flowOf(null)
+            } else {
+                combine(groups.map { group -> lastActivity(group) }) { scored ->
+                    scored.maxByOrNull { it.second }?.first
+                }
+            }
+        }
+
+    private fun lastActivity(group: Group): Flow<Pair<Group, Long>> =
+        expenseRepository.observeExpenses(group.id).map { expenses ->
+            group to (expenses.maxOfOrNull { it.createdAt } ?: 0L).coerceAtLeast(group.createdAt)
+        }
 
     // Must come after currentGroup / _messages: `launch` on Main.immediate can
     // start the collector before the constructor returns.
@@ -86,12 +101,12 @@ class HomeViewModel(
 
     val uiState: StateFlow<HomeUiState> = combine(
         userRepository.observeMe(),
-        groupRepository.observeMyGroups(),
+        currentGroup,
         connectivity.isOnline,
         reminderBusy,
-    ) { me, groups, online, busy -> HomeInputs(me, groups, online, busy) }
+    ) { me, group, online, busy -> HomeInputs(me, group, online, busy) }
         .flatMapLatest { inputs ->
-            val group = inputs.groups.firstOrNull()
+            val group = inputs.group
             if (group == null) {
                 flowOf(HomeUiState(loading = false, offline = !inputs.online, me = inputs.me, reminderBusy = inputs.busy))
             } else {
@@ -130,6 +145,8 @@ class HomeViewModel(
             memberBalances = rows,
             myBalanceOre = balances[meId] ?: 0,
             reminderBusy = inputs.busy,
+            lastActivityAt = (expenses.maxOfOrNull { it.createdAt } ?: 0L)
+                .coerceAtLeast(group.createdAt),
         )
     }
 
@@ -182,7 +199,7 @@ class HomeViewModel(
 
     private data class HomeInputs(
         val me: User?,
-        val groups: List<Group>,
+        val group: Group?,
         val online: Boolean,
         val busy: Boolean,
     )

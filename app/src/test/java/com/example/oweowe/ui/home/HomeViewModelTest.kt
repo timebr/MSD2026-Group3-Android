@@ -64,6 +64,26 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun uiState_showsTheGroupWithTheMostRecentActivity() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db)
+        viewModel.uiState.first { !it.loading }
+
+        val secondId = (FakeGroupRepository(db).createGroup("Ski trip", "") as AppResult.Success).value
+        val result = FakeExpenseRepository(db).addExpense(
+            groupId = secondId, description = "Lift pass", category = "Travel",
+            amountOre = 5_000, paidBy = SeedData.TIM, splitAmong = listOf(SeedData.TIM),
+        )
+        assertEquals(AppResult.Success(Unit), result)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.first { it.group?.id == secondId }
+        val created = db.expenses.value.last { it.groupId == secondId }
+        assertEquals(secondId, state.group?.id)
+        assertEquals(created.createdAt, state.lastActivityAt)
+    }
+
+    @Test
     fun sendReminder_postsTheReminderAndEmitsAMessage() = runTest {
         val db = backend(backgroundScope)
         val viewModel = viewModel(db)

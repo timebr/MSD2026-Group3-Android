@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -47,6 +48,7 @@ import com.example.oweowe.ui.components.MyBalanceText
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SignedAmount
 import com.example.oweowe.ui.components.asString
+import com.example.oweowe.ui.components.daysSince
 
 /** S3 Home dashboard (FR5, FR6, FR8, NFR3, NFR4, NFR5). */
 @Composable
@@ -116,6 +118,14 @@ private fun HomeList(
                 style = MaterialTheme.typography.headlineSmall,
             )
         }
+        item {
+            Text(
+                text = stringResource(R.string.home_recent_group_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
         item { CurrentGroupCard(state, onAddExpense) }
         item {
             Text(
@@ -138,6 +148,18 @@ private fun CurrentGroupCard(state: HomeUiState, onAddExpense: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(group.name, style = MaterialTheme.typography.titleLarge)
+            val days = remember(state.lastActivityAt) {
+                daysSince(System.currentTimeMillis(), state.lastActivityAt)
+            }
+            Text(
+                when {
+                    days <= 0 -> stringResource(R.string.home_last_change_today)
+                    days == 1 -> stringResource(R.string.home_last_change_yesterday)
+                    else -> pluralStringResource(R.plurals.home_last_change_days_ago, days, days)
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             if (group.description.isNotBlank()) {
                 Text(
                     group.description,
