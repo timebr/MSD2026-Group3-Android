@@ -147,7 +147,7 @@
     <string name="add_expense_split_with_label">Split with</string>
     <string name="add_expense_split_everyone">Everyone</string>
     <string name="add_expense_receipt_label">Add receipt</string>
-    <string name="add_expense_receipt_preview_only">Preview only. Receipts are not uploaded yet.</string>
+    <string name="add_expense_receipt_saved_note">Saved with this expense on this device.</string>
     <string name="cd_clear_receipt">Remove receipt</string>
     <string name="add_expense_submit">Split expense</string>
     <string name="add_expense_added">Expense added</string>

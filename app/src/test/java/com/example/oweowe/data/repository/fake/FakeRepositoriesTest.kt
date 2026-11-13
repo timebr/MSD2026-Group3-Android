@@ -85,4 +85,17 @@ class FakeRepositoriesTest {
         val after = expenses.observeExpenses(SeedData.FLAT).first().first { it.description == "Coffee" }
         assertEquals(SyncStatus.SYNCED, after.syncStatus)
     }
+
+    @Test
+    fun addExpense_keepsTheReceiptPath() = runTest {
+        val db = backend(backgroundScope)
+        val expenses = FakeExpenseRepository(db)
+        expenses.addExpense(
+            SeedData.FLAT, "Coffee", "Food", 5_000, SeedData.TIM, listOf(SeedData.TIM),
+            receiptUri = "/data/user/0/files/receipts/1.jpg",
+        )
+
+        val saved = db.expenses.value.first { it.description == "Coffee" }
+        assertEquals("/data/user/0/files/receipts/1.jpg", saved.receiptUri)
+    }
 }
