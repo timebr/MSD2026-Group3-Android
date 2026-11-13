@@ -57,7 +57,9 @@ import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.copyReceiptToAppStorage
+import com.example.oweowe.ui.components.canTakePhoto
 import com.example.oweowe.ui.components.displayName
+import com.example.oweowe.ui.components.rememberCameraCapture
 import com.example.oweowe.ui.components.rememberImageBitmap
 import com.example.oweowe.ui.components.rememberImagePicker
 import kotlinx.coroutines.launch
@@ -87,6 +89,15 @@ fun AddExpenseScreen(
         receiptUri = picked?.toString()
         receiptName = picked?.let { displayName(context, it) }
     }
+    // FR10: taking a photo is the same receipt, just captured with the camera.
+    val cameraPhotoName = stringResource(R.string.add_expense_receipt_camera_name)
+    val takePhoto = rememberCameraCapture { captured ->
+        if (captured != null) {   // null = cancelled: keep whatever was picked before
+            receiptUri = captured.toString()
+            receiptName = cameraPhotoName
+        }
+    }
+    val cameraAvailable = remember(context) { canTakePhoto(context) }
     LaunchedEffect(state.writeState) {
         if (state.writeState == WriteState.Done) {
             viewModel.resetWriteState()
@@ -113,6 +124,8 @@ fun AddExpenseScreen(
             onToggleSplitMember = viewModel::toggleSplitMember,
             onSelectAllMembers = viewModel::selectAllMembers,
             onAddReceipt = pickReceipt,
+            onTakePhoto = takePhoto,
+            cameraAvailable = cameraAvailable,
             receiptUri = receiptUri,
             receiptName = receiptName,
             onClearReceipt = {
@@ -156,6 +169,10 @@ fun AddExpenseContent(
     receiptUri: String? = null,
     receiptName: String? = null,
     onClearReceipt: () -> Unit = {},
+    /** FR10: open a camera app for the receipt photo. */
+    onTakePhoto: () -> Unit = {},
+    /** False when no camera app is installed, so the button is hidden. */
+    cameraAvailable: Boolean = true,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
@@ -252,8 +269,18 @@ fun AddExpenseContent(
                         )
                     }
                 }
-                OutlinedButton(onClick = onAddReceipt, modifier = Modifier.padding(top = 16.dp)) {
-                    Text(stringResource(R.string.add_expense_receipt_label))
+                Row(modifier = Modifier.padding(top = 16.dp)) {
+                    OutlinedButton(onClick = onAddReceipt) {
+                        Text(stringResource(R.string.add_expense_receipt_label))
+                    }
+                    if (cameraAvailable) {
+                        OutlinedButton(
+                            onClick = onTakePhoto,
+                            modifier = Modifier.padding(start = 8.dp),
+                        ) {
+                            Text(stringResource(R.string.add_expense_take_photo))
+                        }
+                    }
                 }
                 val receipt = rememberImageBitmap(receiptUri?.let(Uri::parse))
                 if (receipt != null) {

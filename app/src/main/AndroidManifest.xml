@@ -5,6 +5,14 @@
     <!-- S8 / S10: suggest group members from the device contacts. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
+    <!-- FR10: the camera app is asked to take the receipt photo (Android 11+
+         package visibility, so the app can tell whether one is installed). -->
+    <queries>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".OweOweApplication"
         android:allowBackup="true"
@@ -27,6 +35,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- FR10: hands the camera app a writable Uri for the capture. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

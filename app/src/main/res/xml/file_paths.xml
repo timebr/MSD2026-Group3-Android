@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FR10: the only place the camera app may write is the capture cache. -->
+<paths>
+    <cache-path
+        name="camera_captures"
+        path="camera/" />
+</paths>
