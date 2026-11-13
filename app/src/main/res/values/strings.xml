@@ -121,6 +121,8 @@
     <string name="manage_members_contacts_add">Add</string>
     <string name="manage_members_contacts_show_all">Show all (%1$d)</string>
     <string name="manage_members_contacts_show_less">Show less</string>
+    <string name="manage_members_contacts_demo_note">Sample contacts so you can try adding someone. Real contacts appear here once your phone has contacts with an email address.</string>
+    <string name="manage_members_contacts_all_added">Everyone from your contacts is already in this group.</string>
     <string name="manage_members_added">%1$s was added to the group.</string>
     <string name="manage_members_removed">%1$s was removed from the group.</string>
     <string name="cd_remove_member">Remove %1$s from the group</string>

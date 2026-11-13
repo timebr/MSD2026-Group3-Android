@@ -50,6 +50,7 @@ import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.asString
 import com.example.oweowe.ui.groups.contacts.ContactSuggestion
+import com.example.oweowe.ui.groups.contacts.DEMO_CONTACTS
 import com.example.oweowe.ui.groups.contacts.hasContactsPermission
 import com.example.oweowe.ui.groups.contacts.readContactsWithEmail
 import kotlinx.coroutines.Dispatchers
@@ -95,6 +96,10 @@ fun ManageMembersScreen(
         }
     }
 
+    // A clean emulator has no email contacts, so show demo people instead (D3).
+    val shownSuggestions = if (contacts.isEmpty()) DEMO_CONTACTS else contacts
+    val isDemoData = contactsAllowed && contacts.isEmpty()
+
     Scaffold(
         topBar = {
             AppTopBar(
@@ -110,7 +115,8 @@ fun ManageMembersScreen(
             onAddMemberByEmail = viewModel::addMemberByEmail,
             onAddMemberByPhone = viewModel::addMemberByPhone,
             onRemoveMember = viewModel::removeMember,
-            suggestions = contacts,
+            suggestions = shownSuggestions,
+            demoData = isDemoData,
             contactsAllowed = contactsAllowed,
             contactsDenied = contactsDenied,
             onRequestContacts = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) },
@@ -130,6 +136,7 @@ fun ManageMembersContent(
     onRemoveMember: (MemberRow) -> Unit,
     modifier: Modifier = Modifier,
     suggestions: List<ContactSuggestion> = emptyList(),
+    demoData: Boolean = false,
     contactsAllowed: Boolean = false,
     contactsDenied: Boolean = false,
     onRequestContacts: () -> Unit = {},
@@ -183,34 +190,54 @@ fun ManageMembersContent(
                 item {
                     ContactsAccessCard(denied = contactsDenied, onRequest = onRequestContacts)
                 }
-            } else if (candidates.isNotEmpty()) {
+            } else {
                 item { HorizontalDivider() }
                 item {
-                    Text(
-                        text = stringResource(R.string.manage_members_contacts_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                items(visibleSuggestions, key = { "contact-${it.email}" }) { contact ->
-                    ContactSuggestionRow(
-                        contact = contact,
-                        enabled = !state.busy,
-                        onAdd = { onAddMemberByEmail(contact.email) },
-                    )
-                }
-                if (candidates.size > SUGGESTIONS_PREVIEW_COUNT) {
-                    item {
-                        TextButton(onClick = { showAllSuggestions = !showAllSuggestions }) {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.manage_members_contacts_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        if (demoData) {
                             Text(
-                                if (showAllSuggestions) {
-                                    stringResource(R.string.manage_members_contacts_show_less)
-                                } else {
-                                    stringResource(
-                                        R.string.manage_members_contacts_show_all,
-                                        candidates.size,
-                                    )
-                                },
+                                text = stringResource(R.string.manage_members_contacts_demo_note),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp),
                             )
+                        }
+                    }
+                }
+                if (candidates.isEmpty()) {
+                    item {
+                        Text(
+                            text = stringResource(R.string.manage_members_contacts_all_added),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    items(visibleSuggestions, key = { "contact-${it.email}" }) { contact ->
+                        ContactSuggestionRow(
+                            contact = contact,
+                            enabled = !state.busy,
+                            onAdd = { onAddMemberByEmail(contact.email) },
+                        )
+                    }
+                    if (candidates.size > SUGGESTIONS_PREVIEW_COUNT) {
+                        item {
+                            TextButton(onClick = { showAllSuggestions = !showAllSuggestions }) {
+                                Text(
+                                    if (showAllSuggestions) {
+                                        stringResource(R.string.manage_members_contacts_show_less)
+                                    } else {
+                                        stringResource(
+                                            R.string.manage_members_contacts_show_all,
+                                            candidates.size,
+                                        )
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -495,6 +522,7 @@ private fun ManageMembersContactsPreview() {
                 ContactSuggestion(name = "Maja Contact", email = "maja@test.dk"),
                 ContactSuggestion(name = "Niels Contact", email = "niels@test.dk"),
             ),
+            demoData = true,
             contactsAllowed = true,
         )
     }
