@@ -163,6 +163,7 @@
     <string name="activity_settlement">Settlement</string>
     <string name="activity_expense_fallback">Expense</string>
     <string name="activity_transaction_subtitle">%1$s · %2$s</string>
+    <string name="transaction_paid_by">Paid by %1$s</string>
     <string name="activity_reminders_title">Reminders for you</string>
     <string name="activity_reminder_received">%1$s reminded you about %2$s</string>
 
