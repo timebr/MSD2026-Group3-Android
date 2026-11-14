@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -26,10 +29,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -62,6 +68,7 @@ fun HomeScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    var memberToSettle by remember { mutableStateOf<MemberBalance?>(null) }
     LaunchedEffect(homeViewModel) {
         homeViewModel.messages.collect { message ->
             snackbarHostState.showSnackbar(message.asString(context))
@@ -72,7 +79,14 @@ fun HomeScreen(
         topBar = {
             AppTopBar(
                 title = state.me?.let { stringResource(R.string.home_greeting, it.fullName) }
-                    ?: stringResource(R.string.nav_home),
+                    ?: stringResource(R.string.app_name),
+                navigationIcon = {
+                    Image(
+                        painter = painterResource(R.drawable.ic_logo),
+                        contentDescription = null,
+                        modifier = Modifier.padding(start = 12.dp).size(32.dp),
+                    )
+                },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
                         Icon(
@@ -89,8 +103,19 @@ fun HomeScreen(
             state = state,
             onAddExpense = { onAddExpense(state.group?.id) },
             onRemind = homeViewModel::sendReminder,
+            onSettleUp = { member -> memberToSettle = member },
             onGoToGroups = onGoToGroups,
             modifier = Modifier.padding(padding),
+        )
+    }
+    memberToSettle?.let { member ->
+        SettleUpDialog(
+            member = member,
+            onConfirm = {
+                homeViewModel.settleUp(member)
+                memberToSettle = null
+            },
+            onDismiss = { memberToSettle = null },
         )
     }
 }
@@ -102,6 +127,7 @@ fun HomeContent(
     onRemind: (MemberBalance) -> Unit,
     onGoToGroups: () -> Unit,
     modifier: Modifier = Modifier,
+    onSettleUp: (MemberBalance) -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
@@ -113,7 +139,7 @@ fun HomeContent(
                 message = stringResource(R.string.home_no_groups_message),
                 action = { Button(onClick = onGoToGroups) { Text(stringResource(R.string.home_go_to_groups)) } },
             )
-            else -> HomeList(state, onAddExpense, onRemind, onGoToGroups)
+            else -> HomeList(state, onAddExpense, onRemind, onSettleUp, onGoToGroups)
         }
     }
 }
@@ -123,6 +149,7 @@ private fun HomeList(
     state: HomeUiState,
     onAddExpense: () -> Unit,
     onRemind: (MemberBalance) -> Unit,
+    onSettleUp: (MemberBalance) -> Unit,
     onGoToGroups: () -> Unit,
 ) {
     LazyColumn(
@@ -149,7 +176,7 @@ private fun HomeList(
             }
         } else {
             items(others, key = { it.user.uid }) { member ->
-                MemberBalanceRow(member, onRemind = onRemind)
+                MemberBalanceRow(member, onRemind = onRemind, onSettleUp = onSettleUp)
             }
         }
         item { Spacer(Modifier.height(16.dp)) }
@@ -227,6 +254,7 @@ private fun TotalBalanceCard(state: HomeUiState, onAddExpense: () -> Unit) {
 private fun MemberBalanceRow(
     member: MemberBalance,
     onRemind: (MemberBalance) -> Unit,
+    onSettleUp: (MemberBalance) -> Unit,
 ) {
     val owesMe = member.owesMeOre > 0
     val status = when {
@@ -256,9 +284,14 @@ private fun MemberBalanceRow(
             )
         }
         SignedAmount(ore = member.owesMeOre - member.iOweOre)
+        // FR8: remind members who owe me. FR5: settle up with members I owe.
         if (owesMe) {
             TextButton(onClick = { onRemind(member) }) {
                 Text(stringResource(R.string.home_remind))
+            }
+        } else if (member.iOweOre > 0) {
+            TextButton(onClick = { onSettleUp(member) }) {
+                Text(stringResource(R.string.settle_up))
             }
         }
     }
@@ -267,6 +300,39 @@ private fun MemberBalanceRow(
 @Composable
 private fun ErrorStatePlaceholder() {
     ErrorState(message = stringResource(R.string.common_error_generic))
+}
+
+
+/** Confirms a settlement before it is recorded for the whole group (FR5). */
+@Composable
+private fun SettleUpDialog(
+    member: MemberBalance,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settle_up_title)) },
+        text = {
+            Text(
+                stringResource(
+                    R.string.settle_up_message,
+                    formatKr(member.iOweOre),
+                    member.user.fullName,
+                ),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.settle_up))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
 }
 
 @Preview(showBackground = true, name = "Home content")
