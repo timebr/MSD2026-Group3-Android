@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.example.oweowe.R
 
-/** Standard screen top bar with an optional back arrow. */
+/** Standard screen top bar with an optional back arrow or leading icon. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppTopBar(
@@ -21,19 +21,21 @@ fun AppTopBar(
     modifier: Modifier = Modifier,
     showBack: Boolean = false,
     onBack: () -> Unit = {},
+    navigationIcon: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     TopAppBar(
         title = { Text(title) },
         modifier = modifier,
         navigationIcon = {
-            if (showBack) {
-                IconButton(onClick = onBack) {
+            when {
+                showBack -> IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.action_back),
                     )
                 }
+                else -> navigationIcon()
             }
         },
         actions = actions,

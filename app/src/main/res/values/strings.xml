@@ -50,7 +50,7 @@
     <string name="sign_in_email_label">Email</string>
     <string name="sign_in_password_label">Password</string>
     <string name="sign_in_button">Sign in</string>
-    <string name="sign_in_demo_hint">Demo: tim@test.dk / password</string>
+    <string name="sign_in_demo_hint">Demo account — Email: tim@test.dk, Password: password</string>
 
     <!-- Register (S2) -->
     <string name="register_title">New user</string>
