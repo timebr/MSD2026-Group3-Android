@@ -16,7 +16,25 @@ interface ExpenseRepository {
         receiptUri: String? = null,
     ): AppResult<Unit>
 
-    /** Only the creator may delete; otherwise NOT_ALLOWED. */
+    /**
+     * Any group member may edit an expense (purpose, category, amount, payer,
+     * split and receipt). The expense stays in its group and keeps its creator.
+     */
+    suspend fun updateExpense(
+        groupId: String,
+        expenseId: String,
+        description: String,
+        category: String,
+        amountOre: Long,
+        paidBy: String,
+        splitAmong: List<String>,
+        receiptUri: String? = null,
+    ): AppResult<Unit>
+
+    /**
+     * Any group member may delete an expense; otherwise NOT_ALLOWED. The
+     * deleted row disappears for everyone in the group.
+     */
     suspend fun deleteExpense(groupId: String, expenseId: String): AppResult<Unit>
 
     /** Current user settles their whole balance with withUserId. NOTHING_TO_SETTLE if 0. */

@@ -52,6 +52,7 @@ import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
 import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
+import com.example.oweowe.ui.components.ErrorState
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
@@ -174,11 +175,16 @@ fun AddExpenseContent(
     onTakePhoto: () -> Unit = {},
     /** False when no camera app is installed, so the button is hidden. */
     cameraAvailable: Boolean = true,
+    /** Edit screens override the submit label; adding uses "Split expense". */
+    submitLabel: String? = null,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
+            state.expenseNotFound -> ErrorState(
+                message = stringResource(R.string.edit_expense_not_found),
+            )
             state.groups.isEmpty() -> EmptyState(
                 title = stringResource(R.string.add_expense_no_group_title),
                 message = stringResource(R.string.add_expense_no_group_message),
@@ -253,13 +259,14 @@ fun AddExpenseContent(
                 }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 16.dp),
                 ) {
                     FormLabel(
                         stringResource(R.string.add_expense_split_with_label),
-                        modifier = Modifier.weight(1f),
+
                     )
                     FilterChip(
                         selected = state.splitAmong.size == state.members.size,
@@ -331,7 +338,7 @@ fun AddExpenseContent(
                 }
                 SubmitButton(
                     state = state.writeState,
-                    label = stringResource(R.string.add_expense_submit),
+                    label = submitLabel ?: stringResource(R.string.add_expense_submit),
                     onClick = onSubmit,
                     modifier = Modifier
                         .fillMaxWidth()
