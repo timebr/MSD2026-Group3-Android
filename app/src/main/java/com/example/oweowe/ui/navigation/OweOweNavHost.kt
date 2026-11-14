@@ -80,12 +80,16 @@ fun OweOweNavHost(
         }
         composable(NavRoutes.Groups.ROUTE) {
             var showCreateGroup by rememberSaveable { mutableStateOf(false) }
+            var editGroupId by rememberSaveable { mutableStateOf<String?>(null) }
+            var manageMembersGroupId by rememberSaveable { mutableStateOf<String?>(null) }
             GroupsScreen(
                 container = container,
                 onCreateGroup = { showCreateGroup = true },
                 onOpenGroup = { groupId ->
                     navController.navigate(NavRoutes.GroupOverview.route(groupId))
                 },
+                onEditGroup = { groupId -> editGroupId = groupId },
+                onManageMembers = { groupId -> manageMembersGroupId = groupId },
             )
             // S9: the create-group form is a bottom sheet, not a screen.
             if (showCreateGroup) {
@@ -99,6 +103,25 @@ fun OweOweNavHost(
                                 popUpTo(NavRoutes.Groups.ROUTE)
                             }
                         },
+                    )
+                }
+            }
+            // S7 / S8: actions on the selected group open as sheets over the list.
+            editGroupId?.let { groupId ->
+                SheetScoped {
+                    EditGroupSheet(
+                        container = container,
+                        groupId = groupId,
+                        onDismiss = { editGroupId = null },
+                    )
+                }
+            }
+            manageMembersGroupId?.let { groupId ->
+                SheetScoped {
+                    ManageMembersSheet(
+                        container = container,
+                        groupId = groupId,
+                        onDismiss = { manageMembersGroupId = null },
                     )
                 }
             }

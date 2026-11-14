@@ -16,6 +16,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +44,8 @@ fun GroupsScreen(
     container: AppContainer,
     onCreateGroup: () -> Unit,
     onOpenGroup: (String) -> Unit,
+    onEditGroup: (String) -> Unit,
+    onManageMembers: (String) -> Unit,
 ) {
     val viewModel: GroupsViewModel = viewModel(factory = GroupsViewModel.factory(container))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -66,6 +69,8 @@ fun GroupsScreen(
             state = state,
             onOpenGroup = onOpenGroup,
             onSelectGroup = viewModel::selectGroup,
+            onEditGroup = onEditGroup,
+            onManageMembers = onManageMembers,
             modifier = Modifier.padding(padding),
         )
     }
@@ -76,6 +81,8 @@ fun GroupsContent(
     state: GroupsUiState,
     onOpenGroup: (String) -> Unit,
     onSelectGroup: (String) -> Unit,
+    onEditGroup: (String) -> Unit,
+    onManageMembers: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -95,7 +102,9 @@ fun GroupsContent(
                     item {
                         SelectedGroupCard(
                             summary = selected,
-                            onClick = { onOpenGroup(selected.group.id) },
+                            onOpenGroup = { onOpenGroup(selected.group.id) },
+                            onEditGroup = { onEditGroup(selected.group.id) },
+                            onManageMembers = { onManageMembers(selected.group.id) },
                         )
                     }
                 }
@@ -115,14 +124,19 @@ fun GroupsContent(
     }
 }
 
-/** S4: the selected group (most recent activity) shown above the list (FR3, FR5). */
+/** S4: the selected group shown as an inline overview (FR3, FR5). */
 @Composable
-private fun SelectedGroupCard(summary: GroupSummary, onClick: () -> Unit) {
+private fun SelectedGroupCard(
+    summary: GroupSummary,
+    onOpenGroup: () -> Unit,
+    onEditGroup: () -> Unit,
+    onManageMembers: () -> Unit,
+) {
     val group = summary.group
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = onOpenGroup),
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
@@ -150,6 +164,17 @@ private fun SelectedGroupCard(summary: GroupSummary, onClick: () -> Unit) {
                 color = groupStatusColor(summary),
                 modifier = Modifier.padding(top = 4.dp),
             )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 12.dp),
+            ) {
+                OutlinedButton(onClick = onEditGroup, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.group_overview_edit_details))
+                }
+                OutlinedButton(onClick = onManageMembers, modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.group_overview_manage_members))
+                }
+            }
         }
     }
 }
@@ -238,6 +263,8 @@ private fun GroupsContentPreview() {
             ),
             onOpenGroup = {},
             onSelectGroup = {},
+            onEditGroup = {},
+            onManageMembers = {},
         )
     }
 }
@@ -246,7 +273,7 @@ private fun GroupsContentPreview() {
 @Composable
 private fun GroupsLoadingPreview() {
     MaterialTheme {
-        GroupsContent(state = GroupsUiState(loading = true), onOpenGroup = {}, onSelectGroup = {})
+        GroupsContent(state = GroupsUiState(loading = true), onOpenGroup = {}, onSelectGroup = {}, onEditGroup = {}, onManageMembers = {})
     }
 }
 
@@ -254,7 +281,7 @@ private fun GroupsLoadingPreview() {
 @Composable
 private fun GroupsEmptyPreview() {
     MaterialTheme {
-        GroupsContent(state = GroupsUiState(loading = false), onOpenGroup = {}, onSelectGroup = {})
+        GroupsContent(state = GroupsUiState(loading = false), onOpenGroup = {}, onSelectGroup = {}, onEditGroup = {}, onManageMembers = {})
     }
 }
 
@@ -266,6 +293,8 @@ private fun GroupsOfflinePreview() {
             state = GroupsUiState(loading = false, offline = true, groups = emptyList()),
             onOpenGroup = {},
             onSelectGroup = {},
+            onEditGroup = {},
+            onManageMembers = {},
         )
     }
 }
