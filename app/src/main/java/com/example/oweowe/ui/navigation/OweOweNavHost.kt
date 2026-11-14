@@ -16,8 +16,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.oweowe.AppContainer
 import com.example.oweowe.ui.activity.ActivityScreen
-import com.example.oweowe.ui.auth.RegisterScreen
-import com.example.oweowe.ui.auth.SignInScreen
+import com.example.oweowe.ui.auth.AuthScreen
 import com.example.oweowe.ui.components.SheetScoped
 import com.example.oweowe.ui.expense.AddExpenseSheet
 import com.example.oweowe.ui.expense.EditExpenseScreen
@@ -50,18 +49,9 @@ fun OweOweNavHost(
         startDestination = startDestination,
         modifier = modifier,
     ) {
-        // ---- before authentication ----
+        // ---- before authentication (S1 / S2 toggle) ----
         composable(NavRoutes.SignIn.ROUTE) {
-            SignInScreen(
-                container = container,
-                onNavigateToRegister = { navController.navigate(NavRoutes.Register.ROUTE) },
-            )
-        }
-        composable(NavRoutes.Register.ROUTE) {
-            RegisterScreen(
-                container = container,
-                onNavigateBack = { navController.popBackStack() },
-            )
+            AuthScreen(container = container)
         }
 
         // ---- primary navigation (bottom bar) ----

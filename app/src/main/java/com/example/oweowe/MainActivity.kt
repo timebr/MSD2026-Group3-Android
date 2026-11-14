@@ -82,8 +82,7 @@ fun OweOweApp(container: AppContainer) {
         .collectAsStateWithLifecycle(initialValue = container.initialUserId)
     LaunchedEffect(signedInUserId) {
         val route = navController.currentDestination?.route ?: return@LaunchedEffect
-        val onAuthScreen =
-            route == NavRoutes.SignIn.ROUTE || route == NavRoutes.Register.ROUTE
+        val onAuthScreen = route == NavRoutes.SignIn.ROUTE
         when {
             signedInUserId == null && !onAuthScreen ->
                 navController.navigate(NavRoutes.SignIn.ROUTE) {

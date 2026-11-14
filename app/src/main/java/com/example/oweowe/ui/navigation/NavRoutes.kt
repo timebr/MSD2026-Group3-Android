@@ -4,7 +4,7 @@ package com.example.oweowe.ui.navigation
  * The routing stack from the navigation model:
  *
  * ```
- * SignIn <-> Register                     (before authentication)
+ * SignIn / Register (toggle)              (before authentication)
  * Home  Groups  AddExpense  Activity  Profile   (primary / bottom bar)
  * Groups -> GroupOverview
  * GroupOverview -> EditExpense | Groups (back)
@@ -16,13 +16,9 @@ package com.example.oweowe.ui.navigation
  */
 sealed interface NavRoutes {
 
-    /** ---- before authentication ---- */
+    /** ---- before authentication (S1 sign in / S2 register toggle) ---- */
     data object SignIn : NavRoutes {
         const val ROUTE = "signin"
-    }
-
-    data object Register : NavRoutes {
-        const val ROUTE = "register"
     }
 
     /** ---- primary navigation (bottom bar) ---- */
