@@ -86,6 +86,8 @@ fun GroupOverviewScreen(
     var receiptToShow by remember { mutableStateOf<String?>(null) }
     // The expense awaiting delete confirmation, or null when no dialog is open.
     var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
+    // The member awaiting settle-up confirmation, or null when no dialog is open.
+    var memberToSettle by remember { mutableStateOf<MemberRow?>(null) }
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { message ->
             snackbarHostState.showSnackbar(message.asString(context))
@@ -110,6 +112,7 @@ fun GroupOverviewScreen(
             onEditExpense = onEditExpense,
             onDeleteExpense = { expense -> expenseToDelete = expense },
             onRemind = viewModel::sendReminder,
+            onSettleUp = { member -> memberToSettle = member },
             onTransactionClick = { expense ->
                 val receipt = expense.receiptUri
                 if (receipt == null) {
@@ -134,6 +137,16 @@ fun GroupOverviewScreen(
             onDismiss = { expenseToDelete = null },
         )
     }
+    memberToSettle?.let { member ->
+        SettleUpDialog(
+            member = member,
+            onConfirm = {
+                viewModel.settleUp(member)
+                memberToSettle = null
+            },
+            onDismiss = { memberToSettle = null },
+        )
+    }
 }
 
 @Composable
@@ -146,6 +159,7 @@ fun GroupOverviewContent(
     onDeleteExpense: (Expense) -> Unit,
     onRemind: (MemberRow) -> Unit,
     modifier: Modifier = Modifier,
+    onSettleUp: (MemberRow) -> Unit = {},
     onTransactionClick: (Expense) -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -161,6 +175,7 @@ fun GroupOverviewContent(
                 onEditExpense = onEditExpense,
                 onDeleteExpense = onDeleteExpense,
                 onRemind = onRemind,
+                onSettleUp = onSettleUp,
                 onTransactionClick = onTransactionClick,
             )
         }
@@ -176,6 +191,7 @@ private fun GroupOverviewList(
     onEditExpense: (String) -> Unit,
     onDeleteExpense: (Expense) -> Unit,
     onRemind: (MemberRow) -> Unit,
+    onSettleUp: (MemberRow) -> Unit,
     onTransactionClick: (Expense) -> Unit,
 ) {
     LazyColumn(
@@ -235,7 +251,9 @@ private fun GroupOverviewList(
             GroupMemberRow(
                 member = member,
                 remindEnabled = !state.busy,
+                settleEnabled = !state.busy,
                 onRemind = onRemind,
+                onSettleUp = onSettleUp,
             )
         }
         item {
@@ -281,12 +299,15 @@ private fun GroupOverviewList(
 private fun GroupMemberRow(
     member: MemberRow,
     remindEnabled: Boolean,
+    settleEnabled: Boolean,
     onRemind: (MemberRow) -> Unit,
+    onSettleUp: (MemberRow) -> Unit,
 ) {
     val owesMe = member.owesMeOre > 0
+    val iOwe = member.iOweOre > 0
     val status = when {
         owesMe -> stringResource(R.string.home_member_owes_you, formatKr(member.owesMeOre))
-        member.iOweOre > 0 -> stringResource(R.string.home_you_owe_member, formatKr(member.iOweOre))
+        iOwe -> stringResource(R.string.home_you_owe_member, formatKr(member.iOweOre))
         else -> stringResource(R.string.home_member_settled)
     }
     Row(
@@ -305,18 +326,55 @@ private fun GroupMemberRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = when {
                     owesMe -> MaterialTheme.colorScheme.primary
-                    member.iOweOre > 0 -> MaterialTheme.colorScheme.error
+                    iOwe -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                 },
             )
         }
         SignedAmount(ore = member.owesMeOre - member.iOweOre)
+        // FR8: remind members who owe me. FR5: settle up with members I owe.
         if (owesMe) {
             TextButton(onClick = { onRemind(member) }, enabled = remindEnabled) {
                 Text(stringResource(R.string.home_remind))
             }
+        } else if (iOwe) {
+            TextButton(onClick = { onSettleUp(member) }, enabled = settleEnabled) {
+                Text(stringResource(R.string.settle_up))
+            }
         }
     }
+}
+
+/** Confirms a settlement before it is recorded for the whole group (FR5). */
+@Composable
+private fun SettleUpDialog(
+    member: MemberRow,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settle_up_title)) },
+        text = {
+            Text(
+                stringResource(
+                    R.string.settle_up_message,
+                    formatKr(member.iOweOre),
+                    member.user.fullName,
+                ),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.settle_up))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
 }
 
 /** Confirms that the expense is really deleted, for the whole group. */

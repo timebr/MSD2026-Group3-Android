@@ -305,6 +305,24 @@ class GroupDetailsViewModel(
         }
     }
 
+    /**
+     * FR5: settle up with a member the signed-in user owes money to. Recorded as
+     * a SETTLEMENT expense marked by the debtor (design decision #10).
+     */
+    fun settleUp(member: MemberRow) {
+        if (busy.value) return
+        busy.value = true
+        viewModelScope.launch {
+            val result = expenseRepository.settleUp(groupId, member.user.uid)
+            busy.value = false
+            val message = when (result) {
+                is AppResult.Success -> UiMessage(R.string.settle_up_done, listOf(member.user.fullName))
+                is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
+            }
+            _messages.emit(message)
+        }
+    }
+
     private data class DetailsInputs(
         val me: User?,
         val group: Group?,

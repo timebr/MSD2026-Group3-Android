@@ -1,6 +1,7 @@
 package com.example.oweowe.ui.groups
 
 import com.example.oweowe.data.connectivity.AlwaysOnlineObserver
+import com.example.oweowe.data.model.ExpenseType
 import com.example.oweowe.data.repository.AppResult
 import com.example.oweowe.data.repository.fake.FakeBackend
 import com.example.oweowe.data.repository.fake.FakeExpenseRepository
@@ -8,6 +9,7 @@ import com.example.oweowe.data.repository.fake.FakeGroupRepository
 import com.example.oweowe.data.repository.fake.FakeReminderRepository
 import com.example.oweowe.data.repository.fake.FakeUserRepository
 import com.example.oweowe.data.repository.fake.SeedData
+import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.MainDispatcherRule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
@@ -84,6 +86,26 @@ class GroupDetailsViewModelTest {
 
         val remaining = FakeExpenseRepository(db).observeExpenses(SeedData.FLAT).first()
         assertTrue(remaining.none { it.id == "e2" })
+        assertEquals(false, viewModel.uiState.value.busy)
+    }
+
+    @Test
+    fun settleUp_recordsASettlementAndClearsTheDebt() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db)
+        val state = viewModel.uiState.first { !it.loading }
+        // In the seed data Tim owes Anna 16.67 kr.
+        val anna = state.members.first { it.user.uid == SeedData.ANNA }
+        assertEquals(1_667L, anna.iOweOre)
+
+        viewModel.settleUp(anna)
+        advanceUntilIdle()
+
+        val expenses = FakeExpenseRepository(db).observeExpenses(SeedData.FLAT).first()
+        val settlement = expenses.first { it.type == ExpenseType.SETTLEMENT && it.paidBy == SeedData.TIM }
+        assertEquals(1_667L, settlement.amountOre)
+        assertEquals(listOf(SeedData.ANNA), settlement.splitAmong)
+        assertEquals(0L, BalanceCalculator.amountOwed(expenses, SeedData.TIM, SeedData.ANNA))
         assertEquals(false, viewModel.uiState.value.busy)
     }
 }

@@ -183,6 +183,12 @@
     <string name="delete_expense_message">%1$s (%2$s) will be removed for everyone in the group. This can\'t be undone.</string>
     <string name="group_overview_expense_deleted">%1$s was deleted.</string>
 
+    <!-- Settle up (S4) -->
+    <string name="settle_up">Settle up</string>
+    <string name="settle_up_title">Settle up?</string>
+    <string name="settle_up_message">This records that you paid %1$s to %2$s. Everyone in the group will see it.</string>
+    <string name="settle_up_done">Settled up with %1$s</string>
+
     <!-- Activity (S5) -->
     <string name="activity_title">Activity</string>
     <string name="activity_total_spent">Total spent</string>
