@@ -7,7 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,7 +21,6 @@ import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.ui.components.AppBottomSheet
-import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.SheetHeader
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
@@ -52,37 +50,6 @@ fun CreateGroupSheet(
             onNameChange = viewModel::updateName,
             onDescriptionChange = viewModel::updateDescription,
             onCreate = viewModel::createGroup,
-        )
-    }
-}
-
-/** Full-screen S9 kept as a fallback while the sheet route is validated. */
-@Composable
-fun CreateGroupScreen(
-    container: AppContainer,
-    onBack: () -> Unit,
-    onGroupCreated: (String) -> Unit,
-) {
-    val viewModel: GroupsViewModel = viewModel(factory = GroupsViewModel.factory(container))
-    val state by viewModel.createState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(viewModel) {
-        viewModel.createdGroupId.collect { groupId -> onGroupCreated(groupId) }
-    }
-
-    Scaffold(topBar = {
-        AppTopBar(
-            title = stringResource(R.string.create_group_title),
-            showBack = true,
-            onBack = onBack,
-        )
-    }) { padding ->
-        CreateGroupContent(
-            state = state,
-            onNameChange = viewModel::updateName,
-            onDescriptionChange = viewModel::updateDescription,
-            onCreate = viewModel::createGroup,
-            modifier = Modifier.padding(padding),
         )
     }
 }

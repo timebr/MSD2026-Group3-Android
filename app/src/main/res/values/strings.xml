@@ -128,7 +128,6 @@
     <string name="edit_group_saved">Saved</string>
 
     <!-- Manage members (S8 + S10) -->
-    <string name="manage_members_title">Group members</string>
     <string name="manage_members_remove">Remove</string>
     <string name="manage_members_add_title">Add member</string>
     <string name="manage_members_email">Email</string>
@@ -207,8 +206,6 @@
 
     <!-- Profile (S6) -->
     <string name="profile_title">Profile</string>
-    <string name="profile_edit">Edit profile</string>
-    <string name="profile_notification_settings">Settings</string>
     <string name="profile_sign_out">Sign out</string>
     <string name="profile_save_changes">Save changes</string>
     <string name="profile_email_label">Email</string>
@@ -217,7 +214,6 @@
     <string name="profile_not_signed_in">Not signed in</string>
 
     <!-- Edit profile -->
-    <string name="edit_profile_title">Edit profile</string>
     <string name="edit_profile_saved">Profile saved</string>
     <string name="edit_profile_email_hint">You sign in with this email.</string>
     <string name="edit_profile_phone_locked">To use a different phone number you need a new account.</string>
@@ -225,7 +221,6 @@
     <string name="cd_change_profile_photo">Change profile photo</string>
 
     <!-- Settings: activity notifications (FR2, FR7, FR8) -->
-    <string name="notification_settings_title">Settings</string>
     <string name="notification_settings_push">Activity notifications</string>
     <string name="notification_settings_push_hint">New expenses, new members and changes in your groups, plus reminders sent to you.</string>
 

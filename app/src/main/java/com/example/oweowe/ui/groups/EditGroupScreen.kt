@@ -7,7 +7,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,7 +21,6 @@ import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.ui.components.AppBottomSheet
-import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.SheetHeader
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
@@ -55,43 +53,6 @@ fun EditGroupSheet(
             onNameChange = viewModel::updateEditName,
             onDescriptionChange = viewModel::updateEditDescription,
             onSave = viewModel::saveGroupDetails,
-        )
-    }
-}
-
-/** Full-screen S7 kept as a fallback while the sheet route is validated. */
-@Composable
-fun EditGroupScreen(
-    container: AppContainer,
-    groupId: String,
-    onBack: () -> Unit,
-) {
-    val viewModel: GroupDetailsViewModel = viewModel(
-        key = "group-details-$groupId",
-        factory = GroupDetailsViewModel.factory(container, groupId),
-    )
-    val state by viewModel.editState.collectAsStateWithLifecycle()
-
-    LaunchedEffect(state.writeState) {
-        if (state.writeState == WriteState.Done) {
-            viewModel.resetWriteState()
-            onBack()
-        }
-    }
-
-    Scaffold(topBar = {
-        AppTopBar(
-            title = stringResource(R.string.edit_group_title),
-            showBack = true,
-            onBack = onBack,
-        )
-    }) { padding ->
-        EditGroupContent(
-            state = state,
-            onNameChange = viewModel::updateEditName,
-            onDescriptionChange = viewModel::updateEditDescription,
-            onSave = viewModel::saveGroupDetails,
-            modifier = Modifier.padding(padding),
         )
     }
 }

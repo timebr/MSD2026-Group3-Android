@@ -19,20 +19,14 @@ import com.example.oweowe.ui.activity.ActivityScreen
 import com.example.oweowe.ui.auth.RegisterScreen
 import com.example.oweowe.ui.auth.SignInScreen
 import com.example.oweowe.ui.components.SheetScoped
-import com.example.oweowe.ui.expense.AddExpenseScreen
 import com.example.oweowe.ui.expense.AddExpenseSheet
 import com.example.oweowe.ui.expense.EditExpenseScreen
-import com.example.oweowe.ui.groups.CreateGroupScreen
 import com.example.oweowe.ui.groups.CreateGroupSheet
-import com.example.oweowe.ui.groups.EditGroupScreen
 import com.example.oweowe.ui.groups.EditGroupSheet
 import com.example.oweowe.ui.groups.GroupOverviewScreen
 import com.example.oweowe.ui.groups.GroupsScreen
-import com.example.oweowe.ui.groups.ManageMembersScreen
 import com.example.oweowe.ui.groups.ManageMembersSheet
 import com.example.oweowe.ui.home.HomeScreen
-import com.example.oweowe.ui.profile.EditProfileScreen
-import com.example.oweowe.ui.profile.NotificationSettingsScreen
 import com.example.oweowe.ui.profile.ProfileScreen
 
 /**
@@ -119,23 +113,6 @@ fun OweOweNavHost(
                 }
             }
         }
-        composable(
-            route = NavRoutes.AddExpense.ROUTE_WITH_ARGS,
-            arguments = listOf(
-                navArgument(NavRoutes.AddExpense.GROUP_ID_ARG) {
-                    type = NavType.StringType
-                    defaultValue = ""   // the bottom bar opens the form without a preselected group
-                },
-            ),
-        ) { entry ->
-            AddExpenseScreen(
-                container = container,
-                initialGroupId = entry.arguments
-                    ?.getString(NavRoutes.AddExpense.GROUP_ID_ARG)
-                    ?.takeIf { it.isNotEmpty() },
-                onBack = { navController.popBackStack() },
-            )
-        }
         composable(NavRoutes.Activity.ROUTE) {
             ActivityScreen(container = container)
         }
@@ -144,18 +121,6 @@ fun OweOweNavHost(
         }
 
         // ---- groups ----
-        composable(NavRoutes.CreateGroup.ROUTE) {
-            CreateGroupScreen(
-                container = container,
-                onBack = { navController.popBackStack() },
-                onGroupCreated = { groupId ->
-                    navController.navigate(NavRoutes.GroupOverview.route(groupId)) {
-                        // The form must not sit on the back stack behind the new group.
-                        popUpTo(NavRoutes.Groups.ROUTE)
-                    }
-                },
-            )
-        }
         composable(
             route = NavRoutes.GroupOverview.ROUTE_WITH_ARGS,
             arguments = listOf(
@@ -224,44 +189,6 @@ fun OweOweNavHost(
                 container = container,
                 groupId = entry.arguments?.getString(NavRoutes.EditExpense.GROUP_ID_ARG).orEmpty(),
                 expenseId = entry.arguments?.getString(NavRoutes.EditExpense.EXPENSE_ID_ARG).orEmpty(),
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(
-            route = NavRoutes.EditGroup.ROUTE_WITH_ARGS,
-            arguments = listOf(
-                navArgument(NavRoutes.EditGroup.GROUP_ID_ARG) { type = NavType.StringType },
-            ),
-        ) { entry ->
-            EditGroupScreen(
-                container = container,
-                groupId = entry.arguments?.getString(NavRoutes.EditGroup.GROUP_ID_ARG).orEmpty(),
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(
-            route = NavRoutes.ManageMembers.ROUTE_WITH_ARGS,
-            arguments = listOf(
-                navArgument(NavRoutes.ManageMembers.GROUP_ID_ARG) { type = NavType.StringType },
-            ),
-        ) { entry ->
-            ManageMembersScreen(
-                container = container,
-                groupId = entry.arguments?.getString(NavRoutes.ManageMembers.GROUP_ID_ARG).orEmpty(),
-                onBack = { navController.popBackStack() },
-            )
-        }
-
-        // ---- profile ----
-        composable(NavRoutes.EditProfile.ROUTE) {
-            EditProfileScreen(
-                container = container,
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(NavRoutes.NotificationSettings.ROUTE) {
-            NotificationSettingsScreen(
-                container = container,
                 onBack = { navController.popBackStack() },
             )
         }

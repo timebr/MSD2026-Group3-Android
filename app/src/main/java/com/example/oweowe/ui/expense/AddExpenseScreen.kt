@@ -25,7 +25,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,7 +49,6 @@ import com.example.oweowe.R
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
 import com.example.oweowe.ui.components.AppBottomSheet
-import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
 import com.example.oweowe.ui.components.ErrorState
 import com.example.oweowe.ui.components.InitialsAvatar
@@ -142,90 +140,6 @@ fun AddExpenseSheet(
                     }
                 }
             },
-        )
-    }
-}
-
-/** Full-screen S11 kept as a fallback while the sheet route is validated. */
-@Composable
-fun AddExpenseScreen(
-    container: AppContainer,
-    initialGroupId: String?,
-    onBack: () -> Unit,
-) {
-    val viewModel: AddExpenseViewModel = viewModel(
-        key = "add-expense-$initialGroupId",
-        factory = AddExpenseViewModel.factory(container, initialGroupId),
-    )
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var receiptUri by rememberSaveable { mutableStateOf<String?>(null) }
-    var receiptName by rememberSaveable { mutableStateOf<String?>(null) }
-    var savingReceipt by remember { mutableStateOf(false) }
-    val pickReceipt = rememberImagePicker { picked ->
-        receiptUri = picked?.toString()
-        receiptName = picked?.let { displayName(context, it) }
-    }
-    val cameraPhotoName = stringResource(R.string.add_expense_receipt_camera_name)
-    val takePhoto = rememberCameraCapture { captured ->
-        if (captured != null) {
-            receiptUri = captured.toString()
-            receiptName = cameraPhotoName
-        }
-    }
-    val cameraAvailable = remember(context) { canTakePhoto(context) }
-    LaunchedEffect(state.writeState) {
-        if (state.writeState == WriteState.Done) {
-            viewModel.resetWriteState()
-            onBack()
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            AppTopBar(
-                title = stringResource(R.string.add_expense_title),
-                showBack = true,
-                onBack = onBack,
-            )
-        },
-    ) { padding ->
-        AddExpenseContent(
-            state = state,
-            onDescriptionChange = viewModel::updateDescription,
-            onCategoryChange = viewModel::updateCategory,
-            onAmountChange = viewModel::updateAmount,
-            onGroupSelected = viewModel::selectGroup,
-            onPayerSelected = viewModel::selectPayer,
-            onToggleSplitMember = viewModel::toggleSplitMember,
-            onSelectAllMembers = viewModel::selectAllMembers,
-            onAddReceipt = pickReceipt,
-            onTakePhoto = takePhoto,
-            cameraAvailable = cameraAvailable,
-            receiptUri = receiptUri,
-            receiptName = receiptName,
-            onClearReceipt = {
-                receiptUri = null
-                receiptName = null
-            },
-            onSubmit = {
-                val picked = receiptUri
-                when {
-                    savingReceipt -> Unit
-                    picked == null -> viewModel.submit()
-                    else -> {
-                        savingReceipt = true
-                        scope.launch {
-                            val path = copyReceiptToAppStorage(context, Uri.parse(picked))
-                            savingReceipt = false
-                            viewModel.submit(receiptUri = path)
-                        }
-                    }
-                }
-            },
-            modifier = Modifier.padding(padding),
         )
     }
 }
