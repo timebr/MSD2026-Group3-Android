@@ -43,6 +43,8 @@ data class GroupsUiState(
     val loading: Boolean = true,
     val offline: Boolean = false,
     val groups: List<GroupSummary> = emptyList(),
+    /** The group with the most recent activity, shown in the S4 selected-group card. */
+    val selectedGroup: GroupSummary? = null,
 )
 
 /** S9: the create-group form. */
@@ -71,21 +73,29 @@ class GroupsViewModel(
             if (groups.isEmpty()) {
                 flowOf(GroupsUiState(loading = false, offline = !online))
             } else {
-                combine(groups.map { group -> myNet(group, meId) }) { nets ->
+                combine(groups.map { group -> summary(group, meId) }) { rows ->
                     GroupsUiState(
                         loading = false,
                         offline = !online,
-                        groups = groups.zip(nets) { group, net -> GroupSummary(group, net) },
+                        groups = rows.map { it.summary },
+                        selectedGroup = rows.maxByOrNull { it.lastActivity }?.summary,
                     )
                 }
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupsUiState())
 
-    private fun myNet(group: Group, meId: String): Flow<Long> =
+    private fun summary(group: Group, meId: String): Flow<GroupRow> =
         expenseRepository.observeExpenses(group.id).map { expenses ->
-            BalanceCalculator.balances(expenses)[meId] ?: 0L
+            GroupRow(
+                summary = GroupSummary(group, BalanceCalculator.balances(expenses)[meId] ?: 0L),
+                // Same "most recent activity" rule as S3 Home, so the two agree.
+                lastActivity = (expenses.maxOfOrNull { it.createdAt } ?: 0L)
+                    .coerceAtLeast(group.createdAt),
+            )
         }
+
+    private data class GroupRow(val summary: GroupSummary, val lastActivity: Long)
 
     private val _createState = MutableStateFlow(CreateGroupUiState())
     val createState: StateFlow<CreateGroupUiState> = _createState.asStateFlow()

@@ -85,6 +85,14 @@ fun GroupsContent(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                state.selectedGroup?.let { selected ->
+                    item {
+                        SelectedGroupCard(
+                            summary = selected,
+                            onClick = { onOpenGroup(selected.group.id) },
+                        )
+                    }
+                }
                 items(state.groups, key = { it.group.id }) { summary ->
                     GroupCard(summary = summary, onClick = { onOpenGroup(summary.group.id) })
                 }
@@ -93,14 +101,48 @@ fun GroupsContent(
     }
 }
 
+/** S4: the selected group (most recent activity) shown above the list (FR3, FR5). */
+@Composable
+private fun SelectedGroupCard(summary: GroupSummary, onClick: () -> Unit) {
+    val group = summary.group
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.groups_selected_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(group.name, style = MaterialTheme.typography.titleLarge)
+            if (group.description.isNotBlank()) {
+                Text(
+                    group.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = stringResource(R.string.common_member_count, group.memberIds.size),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Text(
+                text = groupStatusText(summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = groupStatusColor(summary),
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+}
+
 @Composable
 private fun GroupCard(summary: GroupSummary, onClick: () -> Unit) {
     val group = summary.group
-    val status = when {
-        summary.myNetOre > 0 -> stringResource(R.string.groups_you_are_owed, formatKr(summary.myNetOre))
-        summary.myNetOre < 0 -> stringResource(R.string.groups_you_owe, formatKr(-summary.myNetOre))
-        else -> stringResource(R.string.groups_settled)
-    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -122,17 +164,27 @@ private fun GroupCard(summary: GroupSummary, onClick: () -> Unit) {
                 modifier = Modifier.padding(top = 4.dp),
             )
             Text(
-                text = status,
+                text = groupStatusText(summary),
                 style = MaterialTheme.typography.bodyMedium,
-                color = when {
-                    summary.myNetOre > 0 -> MaterialTheme.colorScheme.primary
-                    summary.myNetOre < 0 -> MaterialTheme.colorScheme.error
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                color = groupStatusColor(summary),
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
     }
+}
+
+@Composable
+private fun groupStatusText(summary: GroupSummary): String = when {
+    summary.myNetOre > 0 -> stringResource(R.string.groups_you_are_owed, formatKr(summary.myNetOre))
+    summary.myNetOre < 0 -> stringResource(R.string.groups_you_owe, formatKr(-summary.myNetOre))
+    else -> stringResource(R.string.groups_settled)
+}
+
+@Composable
+private fun groupStatusColor(summary: GroupSummary) = when {
+    summary.myNetOre > 0 -> MaterialTheme.colorScheme.primary
+    summary.myNetOre < 0 -> MaterialTheme.colorScheme.error
+    else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 @Preview(showBackground = true, name = "Groups list")
@@ -151,6 +203,10 @@ private fun GroupsContentPreview() {
                         Group(id = "g2", name = "Trip to Berlin", description = "", memberIds = listOf("u1", "u4")),
                         myNetOre = -3_250,
                     ),
+                ),
+                selectedGroup = GroupSummary(
+                    Group(id = "g1", name = "Flat 4B", description = "Shared flat expenses", memberIds = listOf("u1", "u2", "u3")),
+                    myNetOre = 12_500,
                 ),
             ),
             onOpenGroup = {},

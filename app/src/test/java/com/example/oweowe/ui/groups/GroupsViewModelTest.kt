@@ -64,6 +64,29 @@ class GroupsViewModelTest {
     }
 
     @Test
+    fun uiState_selectedGroupFollowsTheMostRecentActivity() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db, AlwaysOnlineObserver)
+        val createdIds = mutableListOf<String>()
+        val collector = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.createdGroupId.toList(createdIds)
+        }
+
+        // Only the seed group exists, so it is the selected one.
+        assertEquals(SeedData.FLAT, viewModel.uiState.first { !it.loading }.selectedGroup?.group?.id)
+
+        viewModel.updateName("Holiday")
+        viewModel.createGroup()
+        advanceUntilIdle()
+        collector.cancel()
+
+        val id = createdIds.single()
+        val state = viewModel.uiState.first { it.selectedGroup?.group?.id == id }
+        assertEquals(id, state.selectedGroup?.group?.id)         // newest activity wins
+        assertEquals(2, state.groups.size)
+    }
+
+    @Test
     fun createGroup_blankName_marksTheFieldInsteadOfSubmitting() = runTest {
         val db = backend(backgroundScope)
         val viewModel = viewModel(db, AlwaysOnlineObserver)
