@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.oweowe.AppContainer
+import com.example.oweowe.SelectedGroupStore
 import com.example.oweowe.data.connectivity.ConnectivityObserver
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.repository.AppResult
@@ -65,10 +66,11 @@ class GroupsViewModel(
     private val userRepository: UserRepository,
     private val expenseRepository: ExpenseRepository,
     connectivity: ConnectivityObserver,
+    private val selectedGroupStore: SelectedGroupStore? = null,
 ) : ViewModel() {
 
-    /** The group the user marked as selected on S4; null until they pick one. */
-    private val selectedGroupId = MutableStateFlow<String?>(null)
+    /** The group the user marked as selected on S4; mirrors the shared store for S3 Home. */
+    private val selectedGroupId = MutableStateFlow<String?>(selectedGroupStore?.selectedGroupId?.value)
 
     val uiState: StateFlow<GroupsUiState> = combine(
         groupRepository.observeMyGroups(),
@@ -97,9 +99,10 @@ class GroupsViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupsUiState())
 
-    /** S4: the user chooses which group the selected-group card shows. */
+    /** S4: the user chooses which group the selected-group card shows (and S3 uses). */
     fun selectGroup(groupId: String) {
         selectedGroupId.value = groupId
+        selectedGroupStore?.select(groupId)
     }
 
     private fun summary(group: Group, meId: String): Flow<GroupRow> =
@@ -164,6 +167,7 @@ class GroupsViewModel(
                         userRepository = container.userRepository,
                         expenseRepository = container.expenseRepository,
                         connectivity = container.connectivityObserver,
+                        selectedGroupStore = container.selectedGroupStore,
                     )
                 }
             }

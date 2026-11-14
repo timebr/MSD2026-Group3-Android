@@ -33,6 +33,9 @@ class AppContainer(
      */
     val initialUserId: String? = fakeBackend.currentUserId.value
 
+    /** Shared UI selection: the group picked on S4 drives the current group on S3. */
+    val selectedGroupStore = SelectedGroupStore()
+
     val authRepository: AuthRepository = FakeAuthRepository(fakeBackend)
     val userRepository: UserRepository = FakeUserRepository(fakeBackend)
     val groupRepository: GroupRepository = FakeGroupRepository(fakeBackend)
