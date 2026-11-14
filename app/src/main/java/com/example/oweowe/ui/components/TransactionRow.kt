@@ -29,6 +29,9 @@ import com.example.oweowe.data.model.SyncStatus
  * two lists cannot drift apart (FR5). Activity passes the group name; the group
  * overview leaves it null, because there every row belongs to that group.
  *
+ * [payeeName] is the settlement recipient, used only for settlements so the row
+ * reads "A paid B" instead of just "Paid by A".
+ *
  * When [onClick] is set the row is tappable (FR10 receipts).
  * [onEdit] and [onDelete] add the actions used by the group overview.
  */
@@ -38,6 +41,7 @@ fun TransactionRow(
     payerName: String,
     modifier: Modifier = Modifier,
     groupName: String? = null,
+    payeeName: String? = null,
     onClick: (() -> Unit)? = null,
     onEdit: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
@@ -58,11 +62,7 @@ fun TransactionRow(
                 style = MaterialTheme.typography.bodyLarge,
             )
             Text(
-                text = if (groupName == null) {
-                    stringResource(R.string.transaction_paid_by, payerName)
-                } else {
-                    stringResource(R.string.activity_transaction_subtitle, payerName, groupName)
-                },
+                text = transactionSubtitle(expense, payerName, groupName, payeeName),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -113,3 +113,30 @@ private fun transactionTitle(expense: Expense): String =
         expense.category.isNotBlank() -> expense.category
         else -> stringResource(R.string.activity_expense_fallback)
     }
+
+/**
+ * The subtitle line: "A paid B" for settlements (FR5), otherwise who paid, and
+ * in Activity the group name is appended.
+ */
+@Composable
+private fun transactionSubtitle(
+    expense: Expense,
+    payerName: String,
+    groupName: String?,
+    payeeName: String?,
+): String {
+    val settlement = expense.type == ExpenseType.SETTLEMENT && payeeName != null
+    if (settlement) {
+        val paid = stringResource(R.string.transaction_settlement_paid, payerName, payeeName!!)
+        return if (groupName == null) {
+            paid
+        } else {
+            stringResource(R.string.activity_transaction_subtitle, paid, groupName)
+        }
+    }
+    return if (groupName == null) {
+        stringResource(R.string.transaction_paid_by, payerName)
+    } else {
+        stringResource(R.string.activity_transaction_subtitle, payerName, groupName)
+    }
+}

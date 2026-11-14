@@ -8,12 +8,12 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -26,7 +26,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,12 +49,13 @@ import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
-import com.example.oweowe.ui.components.AppTopBar
+import com.example.oweowe.ui.components.AppBottomSheet
 import com.example.oweowe.ui.components.EmptyState
 import com.example.oweowe.ui.components.ErrorState
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
+import com.example.oweowe.ui.components.SheetHeader
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.canTakePhoto
@@ -65,13 +65,17 @@ import com.example.oweowe.ui.components.rememberCameraCapture
 import com.example.oweowe.ui.components.rememberImageBitmap
 import com.example.oweowe.ui.components.rememberImagePicker
 import kotlinx.coroutines.launch
+import com.example.oweowe.ui.components.appTextFieldColors
 
-/** S11 Add expense (FR4). FR10: a picked receipt is copied into app storage and kept with the expense. */
+/**
+ * S11 Add expense (FR4) as a bottom sheet. FR10: a picked receipt is copied into
+ * app storage and kept with the expense.
+ */
 @Composable
-fun AddExpenseScreen(
+fun AddExpenseSheet(
     container: AppContainer,
     initialGroupId: String?,
-    onBack: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     val viewModel: AddExpenseViewModel = viewModel(
         key = "add-expense-$initialGroupId",
@@ -79,22 +83,18 @@ fun AddExpenseScreen(
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // FR10: the picker only selects the image; it is copied on submit so the
-    // receipt survives leaving this screen.
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var receiptUri by rememberSaveable { mutableStateOf<String?>(null) }
     var receiptName by rememberSaveable { mutableStateOf<String?>(null) }
-    // Re-entrancy guard while the picked image is copied off the main thread.
     var savingReceipt by remember { mutableStateOf(false) }
     val pickReceipt = rememberImagePicker { picked ->
         receiptUri = picked?.toString()
         receiptName = picked?.let { displayName(context, it) }
     }
-    // FR10: taking a photo is the same receipt, just captured with the camera.
     val cameraPhotoName = stringResource(R.string.add_expense_receipt_camera_name)
     val takePhoto = rememberCameraCapture { captured ->
-        if (captured != null) {   // null = cancelled: keep whatever was picked before
+        if (captured != null) {
             receiptUri = captured.toString()
             receiptName = cameraPhotoName
         }
@@ -103,19 +103,12 @@ fun AddExpenseScreen(
     LaunchedEffect(state.writeState) {
         if (state.writeState == WriteState.Done) {
             viewModel.resetWriteState()
-            onBack()
+            onDismiss()
         }
     }
 
-    Scaffold(
-        topBar = {
-            AppTopBar(
-                title = stringResource(R.string.add_expense_title),
-                showBack = true,
-                onBack = onBack,
-            )
-        },
-    ) { padding ->
+    AppBottomSheet(onDismiss = onDismiss) {
+        SheetHeader(stringResource(R.string.add_expense_title))
         AddExpenseContent(
             state = state,
             onDescriptionChange = viewModel::updateDescription,
@@ -149,7 +142,6 @@ fun AddExpenseScreen(
                     }
                 }
             },
-            modifier = Modifier.padding(padding),
         )
     }
 }
@@ -178,7 +170,7 @@ fun AddExpenseContent(
     /** Edit screens override the submit label; adding uses "Split expense". */
     submitLabel: String? = null,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxWidth()) {
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
@@ -191,9 +183,9 @@ fun AddExpenseContent(
             )
             else -> Column(
                 Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
+                    .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
             ) {
                 if (state.groups.size > 1) {
                     FormLabel(stringResource(R.string.add_expense_group_label))
@@ -218,6 +210,8 @@ fun AddExpenseContent(
                         null
                     },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = appTextFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 16.dp),
@@ -227,6 +221,8 @@ fun AddExpenseContent(
                     onValueChange = onCategoryChange,
                     label = { Text(stringResource(R.string.add_expense_category_label)) },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = appTextFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
@@ -243,6 +239,8 @@ fun AddExpenseContent(
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = appTextFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
@@ -289,12 +287,13 @@ fun AddExpenseContent(
                     }
                 }
                 Row(modifier = Modifier.padding(top = 16.dp)) {
-                    OutlinedButton(onClick = onAddReceipt) {
+                    OutlinedButton(onClick = onAddReceipt, shape = CircleShape) {
                         Text(stringResource(R.string.add_expense_receipt_label))
                     }
                     if (cameraAvailable) {
                         OutlinedButton(
                             onClick = onTakePhoto,
+                            shape = CircleShape,
                             modifier = Modifier.padding(start = 8.dp),
                         ) {
                             Text(stringResource(R.string.add_expense_take_photo))

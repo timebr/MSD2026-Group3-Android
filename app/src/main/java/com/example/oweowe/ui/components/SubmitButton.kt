@@ -2,6 +2,7 @@ package com.example.oweowe.ui.components
 
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -24,7 +25,12 @@ fun SubmitButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Button(onClick = onClick, enabled = state != WriteState.Busy, modifier = modifier) {
+    Button(
+        onClick = onClick,
+        enabled = state != WriteState.Busy,
+        shape = CircleShape,
+        modifier = modifier.height(52.dp),
+    ) {
         if (state == WriteState.Busy) {
             CircularProgressIndicator(
                 strokeWidth = 2.dp,

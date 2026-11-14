@@ -42,22 +42,10 @@ fun InitialsAvatar(
         .joinToString("") { it.first().uppercase() }
         .ifEmpty { "?" }
 
-    val palette = listOf(
-        MaterialTheme.colorScheme.primaryContainer,
-        MaterialTheme.colorScheme.secondaryContainer,
-        MaterialTheme.colorScheme.tertiaryContainer,
-    )
-    val onPalette = listOf(
-        MaterialTheme.colorScheme.onPrimaryContainer,
-        MaterialTheme.colorScheme.onSecondaryContainer,
-        MaterialTheme.colorScheme.onTertiaryContainer,
-    )
-    val index = (name.hashCode().let { if (it < 0) -it else it }) % palette.size
-
     Box(
         modifier = modifier
             .size(size.dp)
-            .background(palette[index], CircleShape)
+            .background(MaterialTheme.colorScheme.primary, CircleShape)
             .clip(CircleShape),
         contentAlignment = Alignment.Center,
     ) {
@@ -74,11 +62,11 @@ fun InitialsAvatar(
                 // Chips use a small avatar, so the initials shrink with it
                 // instead of overflowing the circle.
                 style = if (size >= 40) {
-                    MaterialTheme.typography.labelLarge
+                    MaterialTheme.typography.titleMedium
                 } else {
                     MaterialTheme.typography.labelSmall
                 },
-                color = onPalette[index],
+                color = MaterialTheme.colorScheme.onPrimary,
                 textAlign = TextAlign.Center,
             )
         }

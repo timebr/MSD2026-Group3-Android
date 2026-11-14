@@ -1,6 +1,7 @@
 package com.example.oweowe.ui.home
 
 import com.example.oweowe.R
+import com.example.oweowe.SelectedGroupStore
 import com.example.oweowe.data.connectivity.AlwaysOnlineObserver
 import com.example.oweowe.data.model.SyncStatus
 import com.example.oweowe.data.repository.AppResult
@@ -34,13 +35,14 @@ class HomeViewModelTest {
     private fun backend(scope: CoroutineScope) =
         FakeBackend(startSignedInAs = SeedData.TIM, scope = scope).apply { delayMs = 0 }
 
-    private fun viewModel(db: FakeBackend) = HomeViewModel(
+    private fun viewModel(db: FakeBackend, selectedGroupStore: SelectedGroupStore = SelectedGroupStore()) = HomeViewModel(
         authRepository = FakeAuthRepository(db),
         userRepository = FakeUserRepository(db),
         groupRepository = FakeGroupRepository(db),
         expenseRepository = FakeExpenseRepository(db),
         reminderRepository = FakeReminderRepository(db),
         connectivity = AlwaysOnlineObserver,
+        selectedGroupStore = selectedGroupStore,
     )
 
     @Test

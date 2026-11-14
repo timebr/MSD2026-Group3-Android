@@ -64,6 +64,32 @@ class GroupsViewModelTest {
     }
 
     @Test
+    fun uiState_selectGroupMakesTheChosenGroupSelected() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db, AlwaysOnlineObserver)
+        val createdIds = mutableListOf<String>()
+        val collector = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.createdGroupId.toList(createdIds)
+        }
+
+        viewModel.updateName("Holiday")
+        viewModel.createGroup()
+        advanceUntilIdle()
+        collector.cancel()
+        val newId = createdIds.single()
+
+        // Default selection is the group with the most recent activity (the new one).
+        val initial = viewModel.uiState.first { it.groups.size == 2 }
+        assertEquals(newId, initial.selectedGroup?.group?.id)
+
+        // Picking a group makes it the selected one; all groups stay listed.
+        viewModel.selectGroup(SeedData.FLAT)
+        val state = viewModel.uiState.first { it.selectedGroup?.group?.id == SeedData.FLAT }
+        assertEquals(SeedData.FLAT, state.selectedGroup?.group?.id)
+        assertEquals(2, state.groups.size)
+    }
+
+    @Test
     fun createGroup_blankName_marksTheFieldInsteadOfSubmitting() = runTest {
         val db = backend(backgroundScope)
         val viewModel = viewModel(db, AlwaysOnlineObserver)

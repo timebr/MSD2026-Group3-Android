@@ -1,15 +1,12 @@
 package com.example.oweowe.ui.groups
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,16 +20,21 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.repository.ErrorReason
-import com.example.oweowe.ui.components.AppTopBar
+import com.example.oweowe.ui.components.AppBottomSheet
+import com.example.oweowe.ui.components.SheetHeader
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonMessage
+import com.example.oweowe.ui.components.appTextFieldColors
 
-/** S9 Create group (FR3). On success the ViewModel emits the new ID; we open its overview. */
+/**
+ * S9 Create group (FR3) as a bottom sheet. On success the ViewModel emits the
+ * new ID; the host opens its overview and dismisses the sheet.
+ */
 @Composable
-fun CreateGroupScreen(
+fun CreateGroupSheet(
     container: AppContainer,
-    onBack: () -> Unit,
+    onDismiss: () -> Unit,
     onGroupCreated: (String) -> Unit,
 ) {
     val viewModel: GroupsViewModel = viewModel(factory = GroupsViewModel.factory(container))
@@ -42,19 +44,13 @@ fun CreateGroupScreen(
         viewModel.createdGroupId.collect { groupId -> onGroupCreated(groupId) }
     }
 
-    Scaffold(topBar = {
-        AppTopBar(
-            title = stringResource(R.string.create_group_title),
-            showBack = true,
-            onBack = onBack,
-        )
-    }) { padding ->
+    AppBottomSheet(onDismiss = onDismiss) {
+        SheetHeader(stringResource(R.string.create_group_title))
         CreateGroupContent(
             state = state,
             onNameChange = viewModel::updateName,
             onDescriptionChange = viewModel::updateDescription,
             onCreate = viewModel::createGroup,
-            modifier = Modifier.padding(padding),
         )
     }
 }
@@ -68,11 +64,10 @@ fun CreateGroupContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        verticalArrangement = Arrangement.Center,
         modifier = modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
     ) {
         OutlinedTextField(
             value = state.name,
@@ -80,12 +75,16 @@ fun CreateGroupContent(
             label = { Text(stringResource(R.string.create_group_name_label)) },
             isError = state.nameInvalid,
             singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.description,
             onValueChange = onDescriptionChange,
             label = { Text(stringResource(R.string.create_group_description_label)) },
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),

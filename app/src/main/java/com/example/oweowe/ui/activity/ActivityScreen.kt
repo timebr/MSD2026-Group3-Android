@@ -139,6 +139,7 @@ private fun ActivityList(state: ActivityUiState) {
                 expense = transaction.expense,
                 payerName = transaction.payerName,
                 groupName = transaction.groupName,
+                payeeName = transaction.payeeName,
             )
         }
         item { Spacer(Modifier.height(16.dp)) }
@@ -164,6 +165,7 @@ private fun ActivityPreview() {
                         ),
                         groupName = "Flat 4B",
                         payerName = "Tim Test",
+                        payeeName = "",
                     ),
                     ActivityTransaction(
                         expense = Expense(
@@ -173,6 +175,7 @@ private fun ActivityPreview() {
                         ),
                         groupName = "Flat 4B",
                         payerName = "Anna Test",
+                        payeeName = "",
                     ),
                 ),
             ),

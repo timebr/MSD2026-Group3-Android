@@ -9,6 +9,7 @@ import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.connectivity.ConnectivityObserver
 import com.example.oweowe.data.model.Expense
+import com.example.oweowe.data.model.ExpenseType
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
 import com.example.oweowe.data.repository.AppResult
@@ -53,6 +54,8 @@ data class MemberRow(
 data class GroupTransaction(
     val expense: Expense,
     val payerName: String,
+    /** Settlement recipient, shown as "A paid B" (FR5). */
+    val payeeName: String,
 )
 
 data class GroupOverviewUiState(
@@ -159,6 +162,12 @@ class GroupDetailsViewModel(
                     GroupTransaction(
                         expense = expense,
                         payerName = userById[expense.paidBy]?.fullName.orEmpty(),
+                        // For a settlement, splitAmong holds the recipient.
+                        payeeName = if (expense.type == ExpenseType.SETTLEMENT) {
+                            userById[expense.splitAmong.firstOrNull()]?.fullName.orEmpty()
+                        } else {
+                            ""
+                        },
                     )
                 },
             busy = inputs.busy,
@@ -290,6 +299,24 @@ class GroupDetailsViewModel(
             busy.value = false
             val message = when (result) {
                 is AppResult.Success -> UiMessage(R.string.group_overview_reminder_sent, listOf(member.user.fullName))
+                is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
+            }
+            _messages.emit(message)
+        }
+    }
+
+    /**
+     * FR5: settle up with a member the signed-in user owes money to. Recorded as
+     * a SETTLEMENT expense marked by the debtor (design decision #10).
+     */
+    fun settleUp(member: MemberRow) {
+        if (busy.value) return
+        busy.value = true
+        viewModelScope.launch {
+            val result = expenseRepository.settleUp(groupId, member.user.uid)
+            busy.value = false
+            val message = when (result) {
+                is AppResult.Success -> UiMessage(R.string.settle_up_done, listOf(member.user.fullName))
                 is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
             }
             _messages.emit(message)

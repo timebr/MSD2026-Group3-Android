@@ -5,15 +5,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -21,7 +19,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -45,9 +42,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.model.User
-import com.example.oweowe.ui.components.AppTopBar
+import com.example.oweowe.ui.components.AppBottomSheet
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.OfflineBanner
+import com.example.oweowe.ui.components.SheetHeader
+import com.example.oweowe.ui.components.SheetScoped
 import com.example.oweowe.ui.components.SignedAmount
 import com.example.oweowe.ui.components.asString
 import com.example.oweowe.ui.groups.contacts.ContactSuggestion
@@ -56,16 +55,62 @@ import com.example.oweowe.ui.groups.contacts.hasContactsPermission
 import com.example.oweowe.ui.groups.contacts.readContactsWithEmail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.example.oweowe.ui.components.appTextFieldColors
+import androidx.compose.foundation.shape.CircleShape
 
-/** S8 Group members with S10 Add member (FR3). */
+/** S8 Group members (FR3) as a bottom sheet, with S10 Add member on top. */
 @Composable
-fun ManageMembersScreen(
+fun ManageMembersSheet(
     container: AppContainer,
     groupId: String,
-    onBack: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     val viewModel: GroupDetailsViewModel = viewModel(
-        key = "group-details-$groupId",
+        key = "manage-members-$groupId",
+        factory = GroupDetailsViewModel.factory(container, groupId),
+    )
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { message ->
+            snackbarHostState.showSnackbar(message.asString(context))
+        }
+    }
+
+    var showAddMember by rememberSaveable { mutableStateOf(false) }
+
+    AppBottomSheet(onDismiss = onDismiss) {
+        SheetHeader(stringResource(R.string.group_overview_members))
+        MembersSection(
+            state = state,
+            onRemoveMember = viewModel::removeMember,
+            onAddMember = { showAddMember = true },
+        )
+        SnackbarHost(snackbarHostState)
+    }
+
+    if (showAddMember) {
+        SheetScoped {
+            AddMemberSheet(
+                container = container,
+                groupId = groupId,
+                onDismiss = { showAddMember = false },
+            )
+        }
+    }
+}
+
+/** S10 Add member (FR3) as its own bottom sheet, opened from S8. */
+@Composable
+fun AddMemberSheet(
+    container: AppContainer,
+    groupId: String,
+    onDismiss: () -> Unit,
+) {
+    val viewModel: GroupDetailsViewModel = viewModel(
+        key = "add-member-$groupId",
         factory = GroupDetailsViewModel.factory(container, groupId),
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -96,45 +141,64 @@ fun ManageMembersScreen(
             emptyList()
         }
     }
-
     // A clean emulator has no email contacts, so show demo people instead (D3).
     val shownSuggestions = if (contacts.isEmpty()) DEMO_CONTACTS else contacts
     val isDemoData = contactsAllowed && contacts.isEmpty()
 
-    Scaffold(
-        topBar = {
-            AppTopBar(
-                title = stringResource(R.string.manage_members_title),
-                showBack = true,
-                onBack = onBack,
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        ManageMembersContent(
+    AppBottomSheet(onDismiss = onDismiss) {
+        SheetHeader(stringResource(R.string.manage_members_add_title))
+        AddMemberSection(
             state = state,
             onAddMemberByEmail = viewModel::addMemberByEmail,
             onAddMemberByPhone = viewModel::addMemberByPhone,
-            onRemoveMember = viewModel::removeMember,
             suggestions = shownSuggestions,
             demoData = isDemoData,
             contactsAllowed = contactsAllowed,
             contactsDenied = contactsDenied,
             onRequestContacts = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) },
-            modifier = Modifier.padding(padding),
         )
+        SnackbarHost(snackbarHostState)
     }
 }
 
 /** How the user identifies the person to add (S10). */
 enum class AddMemberMode { EMAIL, PHONE }
 
+/** The members list and the "Add member" action shown in the S8 sheet. */
 @Composable
-fun ManageMembersContent(
+private fun MembersSection(
+    state: GroupOverviewUiState,
+    onRemoveMember: (MemberRow) -> Unit,
+    onAddMember: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (state.offline) OfflineBanner()
+        state.members.forEach { member ->
+            ManageMemberRow(member, enabled = !state.busy, onRemoveMember = onRemoveMember)
+        }
+        OutlinedButton(
+            onClick = onAddMember,
+            shape = CircleShape,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.manage_members_add_title))
+        }
+    }
+}
+
+/** The S10 add form plus contact suggestions, reused by the sheet and the fallback screen. */
+@Composable
+fun AddMemberSection(
     state: GroupOverviewUiState,
     onAddMemberByEmail: (String) -> Unit,
     onAddMemberByPhone: (String) -> Unit,
-    onRemoveMember: (MemberRow) -> Unit,
     modifier: Modifier = Modifier,
     suggestions: List<ContactSuggestion> = emptyList(),
     demoData: Boolean = false,
@@ -165,93 +229,67 @@ fun ManageMembersContent(
         input = ""
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        if (state.offline) OfflineBanner()
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
+    Column(modifier = modifier.fillMaxWidth()) {
+        AddMemberForm(
+            mode = mode,
+            input = input,
+            busy = state.busy,
+            onModeChange = { mode = it },
+            onInputChange = { input = it },
+            onSubmit = { submit() },
+        )
+        if (!contactsAllowed) {
+            ContactsAccessCard(
+                denied = contactsDenied,
+                onRequest = onRequestContacts,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        } else {
+            HorizontalDivider(Modifier.padding(top = 16.dp))
+            Column(Modifier.padding(top = 12.dp)) {
                 Text(
-                    text = stringResource(R.string.manage_members_add_title),
+                    text = stringResource(R.string.manage_members_contacts_title),
                     style = MaterialTheme.typography.titleMedium,
                 )
-            }
-            item {
-                AddMemberForm(
-                    mode = mode,
-                    input = input,
-                    busy = state.busy,
-                    onModeChange = { mode = it },
-                    onInputChange = { input = it },
-                    onSubmit = { submit() },
-                )
-            }
-            if (!contactsAllowed) {
-                item {
-                    ContactsAccessCard(denied = contactsDenied, onRequest = onRequestContacts)
+                if (demoData) {
+                    Text(
+                        text = stringResource(R.string.manage_members_contacts_demo_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
+            }
+            if (candidates.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.manage_members_contacts_all_added),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             } else {
-                item { HorizontalDivider() }
-                item {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.manage_members_contacts_title),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        if (demoData) {
-                            Text(
-                                text = stringResource(R.string.manage_members_contacts_demo_note),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                    }
+                visibleSuggestions.forEach { contact ->
+                    ContactSuggestionRow(
+                        contact = contact,
+                        enabled = !state.busy,
+                        onAdd = { onAddMemberByEmail(contact.email) },
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
                 }
-                if (candidates.isEmpty()) {
-                    item {
+                if (candidates.size > SUGGESTIONS_PREVIEW_COUNT) {
+                    TextButton(onClick = { showAllSuggestions = !showAllSuggestions }) {
                         Text(
-                            text = stringResource(R.string.manage_members_contacts_all_added),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                } else {
-                    items(visibleSuggestions, key = { "contact-${it.email}" }) { contact ->
-                        ContactSuggestionRow(
-                            contact = contact,
-                            enabled = !state.busy,
-                            onAdd = { onAddMemberByEmail(contact.email) },
-                        )
-                    }
-                    if (candidates.size > SUGGESTIONS_PREVIEW_COUNT) {
-                        item {
-                            TextButton(onClick = { showAllSuggestions = !showAllSuggestions }) {
-                                Text(
-                                    if (showAllSuggestions) {
-                                        stringResource(R.string.manage_members_contacts_show_less)
-                                    } else {
-                                        stringResource(
-                                            R.string.manage_members_contacts_show_all,
-                                            candidates.size,
-                                        )
-                                    },
+                            if (showAllSuggestions) {
+                                stringResource(R.string.manage_members_contacts_show_less)
+                            } else {
+                                stringResource(
+                                    R.string.manage_members_contacts_show_all,
+                                    candidates.size,
                                 )
-                            }
-                        }
+                            },
+                        )
                     }
                 }
-            }
-            item { HorizontalDivider() }
-            item {
-                Text(
-                    text = stringResource(R.string.group_overview_members),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
-            items(state.members, key = { it.user.uid }) { member ->
-                ManageMemberRow(member, enabled = !state.busy, onRemoveMember = onRemoveMember)
             }
         }
     }
@@ -262,8 +300,12 @@ private const val SUGGESTIONS_PREVIEW_COUNT = 5
 
 /** Explains why the app wants the contacts permission before the system prompt. */
 @Composable
-private fun ContactsAccessCard(denied: Boolean, onRequest: () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
+private fun ContactsAccessCard(
+    denied: Boolean,
+    onRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(
                 text = stringResource(R.string.manage_members_contacts_title),
@@ -293,10 +335,11 @@ private fun ContactSuggestionRow(
     contact: ContactSuggestion,
     enabled: Boolean,
     onAdd: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         InitialsAvatar(name = contact.name)
         Column(
@@ -376,11 +419,14 @@ private fun AddMemberForm(
                 ),
                 singleLine = true,
                 enabled = !busy,
+                shape = MaterialTheme.shapes.medium,
+                colors = appTextFieldColors(),
                 modifier = Modifier.weight(1f),
             )
             OutlinedButton(
                 onClick = onSubmit,
                 enabled = !busy,
+                shape = CircleShape,
                 modifier = Modifier.padding(start = 8.dp),
             ) {
                 if (busy) {
@@ -445,58 +491,6 @@ private fun ManageMemberRow(
     }
 }
 
-@Preview(showBackground = true, name = "Manage members")
-@Composable
-private fun ManageMembersPreview() {
-    MaterialTheme {
-        ManageMembersContent(
-            state = GroupOverviewUiState(
-                loading = false,
-                me = User(uid = "u1", fullName = "Tim Test", email = "tim@test.dk"),
-                members = listOf(
-                    MemberRow(
-                        User(uid = "u1", fullName = "Tim Test", email = "tim@test.dk"),
-                        balanceOre = 1_667, isMe = true, canRemove = false, owesMeOre = 0,
-                    ),
-                    MemberRow(
-                        User(uid = "u2", fullName = "Anna Test", email = "anna@test.dk"),
-                        balanceOre = -2_700, isMe = false, canRemove = false, owesMeOre = 2_700,
-                    ),
-                    MemberRow(
-                        User(uid = "u3", fullName = "Jonas Test", email = "jonas@test.dk"),
-                        balanceOre = 1_033, isMe = false, canRemove = false, owesMeOre = 0,
-                    ),
-                ),
-            ),
-            onAddMemberByEmail = {},
-            onAddMemberByPhone = {},
-            onRemoveMember = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "Manage members busy")
-@Composable
-private fun ManageMembersBusyPreview() {
-    MaterialTheme {
-        ManageMembersContent(
-            state = GroupOverviewUiState(
-                loading = false,
-                busy = true,
-                members = listOf(
-                    MemberRow(
-                        User(uid = "u2", fullName = "Anna Test", email = "anna@test.dk"),
-                        balanceOre = 0, isMe = false, canRemove = true, owesMeOre = 0,
-                    ),
-                ),
-            ),
-            onAddMemberByEmail = {},
-            onAddMemberByPhone = {},
-            onRemoveMember = {},
-        )
-    }
-}
-
 @Preview(showBackground = true, name = "Add member by phone")
 @Composable
 private fun AddMemberByPhonePreview() {
@@ -508,55 +502,6 @@ private fun AddMemberByPhonePreview() {
             onModeChange = {},
             onInputChange = {},
             onSubmit = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "Manage members contact suggestions")
-@Composable
-private fun ManageMembersContactsPreview() {
-    MaterialTheme {
-        ManageMembersContent(
-            state = GroupOverviewUiState(
-                loading = false,
-                me = User(uid = "u1", fullName = "Tim Test", email = "tim@test.dk"),
-                members = listOf(
-                    MemberRow(
-                        User(uid = "u1", fullName = "Tim Test", email = "tim@test.dk"),
-                        balanceOre = 0, isMe = true, canRemove = false, owesMeOre = 0,
-                    ),
-                ),
-            ),
-            onAddMemberByEmail = {},
-            onAddMemberByPhone = {},
-            onRemoveMember = {},
-            suggestions = listOf(
-                ContactSuggestion(name = "Maja Contact", email = "maja@test.dk"),
-                ContactSuggestion(name = "Niels Contact", email = "niels@test.dk"),
-            ),
-            demoData = true,
-            contactsAllowed = true,
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "Manage members contacts prompt")
-@Composable
-private fun ManageMembersContactsPromptPreview() {
-    MaterialTheme {
-        ManageMembersContent(
-            state = GroupOverviewUiState(
-                loading = false,
-                members = listOf(
-                    MemberRow(
-                        User(uid = "u2", fullName = "Anna Test", email = "anna@test.dk"),
-                        balanceOre = 0, isMe = false, canRemove = true, owesMeOre = 0,
-                    ),
-                ),
-            ),
-            onAddMemberByEmail = {},
-            onAddMemberByPhone = {},
-            onRemoveMember = {},
         )
     }
 }

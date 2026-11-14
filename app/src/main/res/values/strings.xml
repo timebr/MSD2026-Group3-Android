@@ -50,8 +50,7 @@
     <string name="sign_in_email_label">Email</string>
     <string name="sign_in_password_label">Password</string>
     <string name="sign_in_button">Sign in</string>
-    <string name="sign_in_switch_to_register">New here? Create an account</string>
-    <string name="sign_in_demo_hint">Demo: tim@test.dk / password</string>
+    <string name="sign_in_demo_hint">Demo account — Email: tim@test.dk, Password: password</string>
 
     <!-- Register (S2) -->
     <string name="register_title">New user</string>
@@ -60,7 +59,6 @@
     <string name="register_password_label">Password</string>
     <string name="register_phone_label">Phone</string>
     <string name="register_button">Create user</string>
-    <string name="register_switch_to_sign_in">Already have an account? Sign in</string>
 
     <!-- Home (S3) -->
     <string name="home_greeting">Hi, %1$s</string>
@@ -80,7 +78,13 @@
     <string name="home_no_groups_message">Create a group to start sharing expenses.</string>
     <string name="home_go_to_groups">Go to groups</string>
     <string name="home_synced_in_background">\"%1$s\" was synced in the background.</string>
-    <string name="home_recent_group_label">Most recent activity</string>
+    <string name="home_current_group_label">Current group</string>
+    <string name="home_see_list_view">See list view</string>
+    <string name="home_total_balance_label">Total balance</string>
+    <string name="home_overall_owed">Overall, you are owed</string>
+    <string name="home_overall_owe">Overall, you owe</string>
+    <string name="home_overall_settled">Overall, you are settled up</string>
+    <string name="cd_open_settings">Open settings</string>
 
     <!-- Groups (S4) -->
     <string name="groups_title">Your groups</string>
@@ -92,6 +96,8 @@
     <string name="groups_you_owe">You owe %1$s</string>
     <string name="groups_settled">Settled up</string>
     <string name="groups_created">Group created</string>
+    <string name="groups_selected_label">Selected group</string>
+    <string name="groups_select">Select</string>
 
     <!-- Create group (S9) -->
     <string name="create_group_title">New group</string>
@@ -120,7 +126,6 @@
     <string name="edit_group_saved">Saved</string>
 
     <!-- Manage members (S8 + S10) -->
-    <string name="manage_members_title">Group members</string>
     <string name="manage_members_remove">Remove</string>
     <string name="manage_members_add_title">Add member</string>
     <string name="manage_members_email">Email</string>
@@ -175,6 +180,12 @@
     <string name="delete_expense_message">%1$s (%2$s) will be removed for everyone in the group. This can\'t be undone.</string>
     <string name="group_overview_expense_deleted">%1$s was deleted.</string>
 
+    <!-- Settle up (S4) -->
+    <string name="settle_up">Settle up</string>
+    <string name="settle_up_title">Settle up?</string>
+    <string name="settle_up_message">This records that you paid %1$s to %2$s. Everyone in the group will see it.</string>
+    <string name="settle_up_done">Settled up with %1$s</string>
+
     <!-- Activity (S5) -->
     <string name="activity_title">Activity</string>
     <string name="activity_total_spent">Total spent</string>
@@ -183,6 +194,7 @@
     <string name="activity_empty_title">Nothing here yet</string>
     <string name="activity_empty_message">Expenses you add will show up here.</string>
     <string name="activity_settlement">Settlement</string>
+    <string name="transaction_settlement_paid">%1$s paid %2$s</string>
     <string name="activity_expense_fallback">Expense</string>
     <string name="activity_transaction_subtitle">%1$s · %2$s</string>
     <string name="transaction_paid_by">Paid by %1$s</string>
@@ -192,16 +204,14 @@
 
     <!-- Profile (S6) -->
     <string name="profile_title">Profile</string>
-    <string name="profile_edit">Edit profile</string>
-    <string name="profile_notification_settings">Settings</string>
     <string name="profile_sign_out">Sign out</string>
+    <string name="profile_save_changes">Save changes</string>
     <string name="profile_email_label">Email</string>
     <string name="profile_phone_label">Phone</string>
     <string name="profile_name_label">Full name</string>
     <string name="profile_not_signed_in">Not signed in</string>
 
     <!-- Edit profile -->
-    <string name="edit_profile_title">Edit profile</string>
     <string name="edit_profile_saved">Profile saved</string>
     <string name="edit_profile_email_hint">You sign in with this email.</string>
     <string name="edit_profile_phone_locked">To use a different phone number you need a new account.</string>
@@ -209,7 +219,6 @@
     <string name="cd_change_profile_photo">Change profile photo</string>
 
     <!-- Settings: activity notifications (FR2, FR7, FR8) -->
-    <string name="notification_settings_title">Settings</string>
     <string name="notification_settings_push">Activity notifications</string>
     <string name="notification_settings_push_hint">New expenses, new members and changes in your groups, plus reminders sent to you.</string>
 

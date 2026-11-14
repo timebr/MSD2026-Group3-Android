@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.oweowe.AppContainer
 import com.example.oweowe.data.connectivity.ConnectivityObserver
 import com.example.oweowe.data.model.Expense
+import com.example.oweowe.data.model.ExpenseType
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.Reminder
 import com.example.oweowe.data.model.User
@@ -30,6 +31,8 @@ data class ActivityTransaction(
     val expense: Expense,
     val groupName: String,
     val payerName: String,
+    /** Settlement recipient, shown as "A paid B" (FR5). */
+    val payeeName: String,
 )
 
 /** FR7 / FR8: a reminder addressed to the signed-in user. */
@@ -112,6 +115,12 @@ class ActivityViewModel(
                         expense = expense,
                         groupName = groupById[expense.groupId]?.name.orEmpty(),
                         payerName = userById[expense.paidBy]?.fullName.orEmpty(),
+                        // For a settlement, splitAmong holds the recipient.
+                        payeeName = if (expense.type == ExpenseType.SETTLEMENT) {
+                            userById[expense.splitAmong.firstOrNull()]?.fullName.orEmpty()
+                        } else {
+                            ""
+                        },
                     )
                 },
             reminders = reminders
