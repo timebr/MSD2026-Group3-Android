@@ -139,13 +139,7 @@ fun OweOweNavHost(
             ActivityScreen(container = container)
         }
         composable(NavRoutes.Profile.ROUTE) {
-            ProfileScreen(
-                container = container,
-                onEditProfile = { navController.navigate(NavRoutes.EditProfile.ROUTE) },
-                onNotificationSettings = {
-                    navController.navigate(NavRoutes.NotificationSettings.ROUTE)
-                },
-            )
+            ProfileScreen(container = container)
         }
 
         // ---- groups ----
