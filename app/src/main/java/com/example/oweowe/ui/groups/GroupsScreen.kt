@@ -37,6 +37,7 @@ import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
+import androidx.compose.foundation.shape.CircleShape
 
 /** S4 Groups (FR3). */
 @Composable
@@ -168,10 +169,10 @@ private fun SelectedGroupCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(top = 12.dp),
             ) {
-                OutlinedButton(onClick = onEditGroup, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = onEditGroup, shape = CircleShape, modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.group_overview_edit_details))
                 }
-                OutlinedButton(onClick = onManageMembers, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = onManageMembers, shape = CircleShape, modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.group_overview_manage_members))
                 }
             }

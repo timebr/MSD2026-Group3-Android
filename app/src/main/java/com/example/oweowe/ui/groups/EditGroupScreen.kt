@@ -25,6 +25,7 @@ import com.example.oweowe.ui.components.SheetHeader
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonMessage
+import com.example.oweowe.ui.components.appTextFieldColors
 
 /** S7 Edit group details (FR3) as a bottom sheet; Done dismisses it. */
 @Composable
@@ -77,12 +78,16 @@ fun EditGroupContent(
             label = { Text(stringResource(R.string.edit_group_name_label)) },
             isError = state.nameInvalid,
             singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.description,
             onValueChange = onDescriptionChange,
             label = { Text(stringResource(R.string.edit_group_description_label)) },
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),

@@ -55,6 +55,8 @@ import com.example.oweowe.ui.groups.contacts.hasContactsPermission
 import com.example.oweowe.ui.groups.contacts.readContactsWithEmail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.example.oweowe.ui.components.appTextFieldColors
+import androidx.compose.foundation.shape.CircleShape
 
 /** S8 Group members (FR3) as a bottom sheet, with S10 Add member on top. */
 @Composable
@@ -183,6 +185,7 @@ private fun MembersSection(
         }
         OutlinedButton(
             onClick = onAddMember,
+            shape = CircleShape,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.manage_members_add_title))
@@ -416,11 +419,14 @@ private fun AddMemberForm(
                 ),
                 singleLine = true,
                 enabled = !busy,
+                shape = MaterialTheme.shapes.medium,
+                colors = appTextFieldColors(),
                 modifier = Modifier.weight(1f),
             )
             OutlinedButton(
                 onClick = onSubmit,
                 enabled = !busy,
+                shape = CircleShape,
                 modifier = Modifier.padding(start = 8.dp),
             ) {
                 if (busy) {

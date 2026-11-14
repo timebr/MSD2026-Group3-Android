@@ -54,6 +54,7 @@ import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SignedAmount
 import com.example.oweowe.ui.components.asString
+import androidx.compose.foundation.shape.CircleShape
 
 /** S3 Home dashboard (FR5, FR6, FR8, NFR3, NFR4, NFR5). */
 @Composable
@@ -137,7 +138,7 @@ fun HomeContent(
             state.group == null -> EmptyState(
                 title = stringResource(R.string.home_no_groups_title),
                 message = stringResource(R.string.home_no_groups_message),
-                action = { Button(onClick = onGoToGroups) { Text(stringResource(R.string.home_go_to_groups)) } },
+                action = { Button(onClick = onGoToGroups, shape = CircleShape) { Text(stringResource(R.string.home_go_to_groups)) } },
             )
             else -> HomeList(state, onAddExpense, onRemind, onSettleUp, onGoToGroups)
         }
@@ -242,7 +243,11 @@ private fun TotalBalanceCard(state: HomeUiState, onAddExpense: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(onClick = onAddExpense, modifier = Modifier.padding(top = 12.dp)) {
+            Button(
+                onClick = onAddExpense,
+                shape = CircleShape,
+                modifier = Modifier.padding(top = 12.dp).height(48.dp),
+            ) {
                 Text(stringResource(R.string.home_add_expense))
             }
         }

@@ -22,14 +22,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -57,13 +55,16 @@ import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.model.User
 import com.example.oweowe.data.repository.ErrorReason
+import com.example.oweowe.ui.components.AppSwitch
 import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
+import com.example.oweowe.ui.components.SettingsCard
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
+import com.example.oweowe.ui.components.appTextFieldColors
 import com.example.oweowe.ui.components.asString
 import com.example.oweowe.ui.components.copyAvatarToAppStorage
 import com.example.oweowe.ui.components.errorReasonMessage
@@ -247,6 +248,8 @@ fun ProfileContent(
                     label = { Text(stringResource(R.string.profile_name_label)) },
                     isError = editState.nameInvalid,
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = appTextFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -257,6 +260,8 @@ fun ProfileContent(
                     supportingText = { Text(stringResource(R.string.edit_profile_email_hint)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = appTextFieldColors(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
@@ -266,9 +271,11 @@ fun ProfileContent(
                     label = { Text(stringResource(R.string.profile_phone_label)) },
                     supportingText = { Text(stringResource(R.string.edit_profile_phone_locked)) },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = appTextFieldColors(enabled = false),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Card(Modifier.fillMaxWidth()) {
+                SettingsCard(Modifier.fillMaxWidth()) {
                     SettingsSwitchRow(
                         title = stringResource(R.string.notification_settings_push),
                         hint = stringResource(R.string.notification_settings_push_hint),
@@ -277,7 +284,7 @@ fun ProfileContent(
                         onCheckedChange = onSetPushEnabled,
                     )
                 }
-                Card(Modifier.fillMaxWidth()) {
+                SettingsCard(Modifier.fillMaxWidth()) {
                     SettingsSwitchRow(
                         title = stringResource(R.string.settings_contacts_access),
                         hint = stringResource(
@@ -311,7 +318,13 @@ fun ProfileContent(
                     onClick = onSave,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedButton(onClick = onSignOut, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = onSignOut,
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                ) {
                     Text(stringResource(R.string.profile_sign_out))
                 }
                 developerOptions()
@@ -346,7 +359,7 @@ private fun SettingsSwitchRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Switch(
+        AppSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
@@ -369,7 +382,7 @@ private fun DeveloperOptions(container: AppContainer) {
         container.fakeBackend.failNextWith = if (failNext) ErrorReason.NETWORK else null
     }
 
-    Card(Modifier.fillMaxWidth()) {
+    SettingsCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(
                 text = stringResource(R.string.dev_options_title),
@@ -387,7 +400,7 @@ private fun DeveloperOptions(container: AppContainer) {
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f),
                 )
-                Switch(
+                AppSwitch(
                     checked = failNext,
                     onCheckedChange = {
                         failNext = it
@@ -404,7 +417,7 @@ private fun DeveloperOptions(container: AppContainer) {
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f),
                 )
-                Switch(
+                AppSwitch(
                     checked = slow,
                     onCheckedChange = {
                         slow = it

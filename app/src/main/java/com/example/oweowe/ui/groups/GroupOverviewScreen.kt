@@ -60,6 +60,7 @@ import com.example.oweowe.ui.components.asString
 import com.example.oweowe.ui.components.rememberImageBitmap
 import java.io.File
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.shape.CircleShape
 
 /** S4 Group overview (FR3, FR5, FR6, FR8). */
 @Composable
@@ -223,16 +224,16 @@ private fun GroupOverviewList(
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onEditGroup, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = onEditGroup, shape = CircleShape, modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.group_overview_edit_details))
                 }
-                OutlinedButton(onClick = onManageMembers, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = onManageMembers, shape = CircleShape, modifier = Modifier.weight(1f)) {
                     Text(stringResource(R.string.group_overview_manage_members))
                 }
             }
         }
         item {
-            Button(onClick = onAddExpense, modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = onAddExpense, shape = CircleShape, modifier = Modifier.fillMaxWidth().height(52.dp)) {
                 Text(stringResource(R.string.home_add_expense))
             }
         }

@@ -40,6 +40,8 @@ import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.ui.components.errorReasonMessage
+import com.example.oweowe.ui.components.appTextFieldColors
+import androidx.compose.foundation.shape.CircleShape
 
 private enum class AuthMode { SIGN_IN, REGISTER }
 
@@ -152,6 +154,8 @@ private fun SignInForm(
             label = { Text(stringResource(R.string.sign_in_email_label)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
@@ -161,6 +165,8 @@ private fun SignInForm(
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
@@ -179,9 +185,11 @@ private fun SignInForm(
         Button(
             onClick = onSignIn,
             enabled = !state.submitting,
+            shape = CircleShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 16.dp),
+                .padding(top = 16.dp)
+                .height(52.dp),
         ) {
             if (state.submitting) {
                 CircularProgressIndicator(
@@ -218,6 +226,8 @@ private fun RegisterForm(
             label = { Text(stringResource(R.string.register_full_name_label)) },
             isError = state.nameInvalid,
             singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
@@ -226,6 +236,8 @@ private fun RegisterForm(
             label = { Text(stringResource(R.string.register_email_label)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
@@ -237,6 +249,8 @@ private fun RegisterForm(
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
@@ -247,6 +261,8 @@ private fun RegisterForm(
             label = { Text(stringResource(R.string.register_phone_label)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
@@ -264,9 +280,11 @@ private fun RegisterForm(
         Button(
             onClick = onRegister,
             enabled = !state.submitting,
+            shape = CircleShape,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 16.dp),
+                .padding(top = 16.dp)
+                .height(52.dp),
         ) {
             if (state.submitting) {
                 CircularProgressIndicator(

@@ -25,6 +25,7 @@ import com.example.oweowe.ui.components.SheetHeader
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonMessage
+import com.example.oweowe.ui.components.appTextFieldColors
 
 /**
  * S9 Create group (FR3) as a bottom sheet. On success the ViewModel emits the
@@ -74,12 +75,16 @@ fun CreateGroupContent(
             label = { Text(stringResource(R.string.create_group_name_label)) },
             isError = state.nameInvalid,
             singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.description,
             onValueChange = onDescriptionChange,
             label = { Text(stringResource(R.string.create_group_description_label)) },
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),

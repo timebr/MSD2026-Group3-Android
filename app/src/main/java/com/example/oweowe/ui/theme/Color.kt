@@ -2,17 +2,17 @@ package com.example.oweowe.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// A blue-violet palette tuned to match the app logo.
-val Indigo40 = Color(0xFF4F5BD5)
-val IndigoContainer40 = Color(0xFFE0E0FF)
-val OnIndigoContainer40 = Color(0xFF0A0664)
-val IndigoGrey40 = Color(0xFF5B5D72)
-val IndigoGreyContainer40 = Color(0xFFE1E0F9)
-val Teal40 = Color(0xFF3B668C)
+// Warm beige surfaces with blue accents, matching the app's profile/settings design.
+val Blue40 = Color(0xFF1F5AA8)
+val BlueContainer40 = Color(0xFFD6E4FF)
+val OnBlueContainer40 = Color(0xFF001C3A)
+val WarmBrown40 = Color(0xFFB8742A)
+val WarmBrownContainer40 = Color(0xFFF0D9B5)
+val Sand40 = Color(0xFF7A6248)
 
-val Indigo80 = Color(0xFFBEC2FF)
-val IndigoContainer80 = Color(0xFF353BAA)
-val OnIndigoContainer80 = Color(0xFFE0E0FF)
-val IndigoGrey80 = Color(0xFFC5C4DD)
-val IndigoGreyContainer80 = Color(0xFF444559)
-val Teal80 = Color(0xFFA3C9FF)
+val Blue80 = Color(0xFFA9C7FF)
+val BlueContainer80 = Color(0xFF004785)
+val OnBlueContainer80 = Color(0xFFD6E4FF)
+val WarmBrown80 = Color(0xFFF0C089)
+val WarmBrownContainer80 = Color(0xFF6A4310)
+val Sand80 = Color(0xFFE1C9A6)

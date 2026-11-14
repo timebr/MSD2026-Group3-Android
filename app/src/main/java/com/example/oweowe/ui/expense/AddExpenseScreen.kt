@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -64,6 +65,7 @@ import com.example.oweowe.ui.components.rememberCameraCapture
 import com.example.oweowe.ui.components.rememberImageBitmap
 import com.example.oweowe.ui.components.rememberImagePicker
 import kotlinx.coroutines.launch
+import com.example.oweowe.ui.components.appTextFieldColors
 
 /**
  * S11 Add expense (FR4) as a bottom sheet. FR10: a picked receipt is copied into
@@ -208,6 +210,8 @@ fun AddExpenseContent(
                         null
                     },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = appTextFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 16.dp),
@@ -217,6 +221,8 @@ fun AddExpenseContent(
                     onValueChange = onCategoryChange,
                     label = { Text(stringResource(R.string.add_expense_category_label)) },
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = appTextFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
@@ -233,6 +239,8 @@ fun AddExpenseContent(
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = appTextFieldColors(),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp),
@@ -279,12 +287,13 @@ fun AddExpenseContent(
                     }
                 }
                 Row(modifier = Modifier.padding(top = 16.dp)) {
-                    OutlinedButton(onClick = onAddReceipt) {
+                    OutlinedButton(onClick = onAddReceipt, shape = CircleShape) {
                         Text(stringResource(R.string.add_expense_receipt_label))
                     }
                     if (cameraAvailable) {
                         OutlinedButton(
                             onClick = onTakePhoto,
+                            shape = CircleShape,
                             modifier = Modifier.padding(start = 8.dp),
                         ) {
                             Text(stringResource(R.string.add_expense_take_photo))
