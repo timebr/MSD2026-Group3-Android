@@ -191,6 +191,7 @@
     <string name="activity_empty_title">Nothing here yet</string>
     <string name="activity_empty_message">Expenses you add will show up here.</string>
     <string name="activity_settlement">Settlement</string>
+    <string name="transaction_settlement_paid">%1$s paid %2$s</string>
     <string name="activity_expense_fallback">Expense</string>
     <string name="activity_transaction_subtitle">%1$s · %2$s</string>
     <string name="transaction_paid_by">Paid by %1$s</string>

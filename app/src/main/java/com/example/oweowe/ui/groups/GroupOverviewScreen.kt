@@ -258,6 +258,7 @@ private fun GroupOverviewList(
             TransactionRow(
                 expense = transaction.expense,
                 payerName = transaction.payerName,
+                payeeName = transaction.payeeName,
                 onClick = { onTransactionClick(transaction.expense) },
                 // Settlements are not an expense form; only EXPENSE rows are editable or deletable.
                 onEdit = if (transaction.expense.type == ExpenseType.EXPENSE) {
@@ -423,6 +424,7 @@ private fun GroupOverviewPreview() {
                             amountOre = 45_000, paidBy = "u2", createdBy = "u2", createdAt = 2,
                         ),
                         payerName = "Anna Test",
+                        payeeName = "",
                     ),
                     GroupTransaction(
                         expense = Expense(
@@ -430,6 +432,16 @@ private fun GroupOverviewPreview() {
                             amountOre = 30_000, paidBy = "u1", createdBy = "u1", createdAt = 1,
                         ),
                         payerName = "Tim Test",
+                        payeeName = "",
+                    ),
+                    GroupTransaction(
+                        expense = Expense(
+                            id = "s1", groupId = "g1", type = ExpenseType.SETTLEMENT,
+                            amountOre = 3_333, paidBy = "u3", createdBy = "u3", createdAt = 0,
+                            splitAmong = listOf("u1"),
+                        ),
+                        payerName = "Jonas Test",
+                        payeeName = "Tim Test",
                     ),
                 ),
             ),
