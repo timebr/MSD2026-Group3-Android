@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -50,12 +49,14 @@ import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
+import com.example.oweowe.ui.components.AppBottomSheet
 import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
 import com.example.oweowe.ui.components.ErrorState
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
+import com.example.oweowe.ui.components.SheetHeader
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.canTakePhoto
@@ -66,7 +67,86 @@ import com.example.oweowe.ui.components.rememberImageBitmap
 import com.example.oweowe.ui.components.rememberImagePicker
 import kotlinx.coroutines.launch
 
-/** S11 Add expense (FR4). FR10: a picked receipt is copied into app storage and kept with the expense. */
+/**
+ * S11 Add expense (FR4) as a bottom sheet. FR10: a picked receipt is copied into
+ * app storage and kept with the expense.
+ */
+@Composable
+fun AddExpenseSheet(
+    container: AppContainer,
+    initialGroupId: String?,
+    onDismiss: () -> Unit,
+) {
+    val viewModel: AddExpenseViewModel = viewModel(
+        key = "add-expense-$initialGroupId",
+        factory = AddExpenseViewModel.factory(container, initialGroupId),
+    )
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var receiptUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var receiptName by rememberSaveable { mutableStateOf<String?>(null) }
+    var savingReceipt by remember { mutableStateOf(false) }
+    val pickReceipt = rememberImagePicker { picked ->
+        receiptUri = picked?.toString()
+        receiptName = picked?.let { displayName(context, it) }
+    }
+    val cameraPhotoName = stringResource(R.string.add_expense_receipt_camera_name)
+    val takePhoto = rememberCameraCapture { captured ->
+        if (captured != null) {
+            receiptUri = captured.toString()
+            receiptName = cameraPhotoName
+        }
+    }
+    val cameraAvailable = remember(context) { canTakePhoto(context) }
+    LaunchedEffect(state.writeState) {
+        if (state.writeState == WriteState.Done) {
+            viewModel.resetWriteState()
+            onDismiss()
+        }
+    }
+
+    AppBottomSheet(onDismiss = onDismiss) {
+        SheetHeader(stringResource(R.string.add_expense_title))
+        AddExpenseContent(
+            state = state,
+            onDescriptionChange = viewModel::updateDescription,
+            onCategoryChange = viewModel::updateCategory,
+            onAmountChange = viewModel::updateAmount,
+            onGroupSelected = viewModel::selectGroup,
+            onPayerSelected = viewModel::selectPayer,
+            onToggleSplitMember = viewModel::toggleSplitMember,
+            onSelectAllMembers = viewModel::selectAllMembers,
+            onAddReceipt = pickReceipt,
+            onTakePhoto = takePhoto,
+            cameraAvailable = cameraAvailable,
+            receiptUri = receiptUri,
+            receiptName = receiptName,
+            onClearReceipt = {
+                receiptUri = null
+                receiptName = null
+            },
+            onSubmit = {
+                val picked = receiptUri
+                when {
+                    savingReceipt -> Unit
+                    picked == null -> viewModel.submit()
+                    else -> {
+                        savingReceipt = true
+                        scope.launch {
+                            val path = copyReceiptToAppStorage(context, Uri.parse(picked))
+                            savingReceipt = false
+                            viewModel.submit(receiptUri = path)
+                        }
+                    }
+                }
+            },
+        )
+    }
+}
+
+/** Full-screen S11 kept as a fallback while the sheet route is validated. */
 @Composable
 fun AddExpenseScreen(
     container: AppContainer,
@@ -79,22 +159,18 @@ fun AddExpenseScreen(
     )
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    // FR10: the picker only selects the image; it is copied on submit so the
-    // receipt survives leaving this screen.
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var receiptUri by rememberSaveable { mutableStateOf<String?>(null) }
     var receiptName by rememberSaveable { mutableStateOf<String?>(null) }
-    // Re-entrancy guard while the picked image is copied off the main thread.
     var savingReceipt by remember { mutableStateOf(false) }
     val pickReceipt = rememberImagePicker { picked ->
         receiptUri = picked?.toString()
         receiptName = picked?.let { displayName(context, it) }
     }
-    // FR10: taking a photo is the same receipt, just captured with the camera.
     val cameraPhotoName = stringResource(R.string.add_expense_receipt_camera_name)
     val takePhoto = rememberCameraCapture { captured ->
-        if (captured != null) {   // null = cancelled: keep whatever was picked before
+        if (captured != null) {
             receiptUri = captured.toString()
             receiptName = cameraPhotoName
         }
@@ -178,7 +254,7 @@ fun AddExpenseContent(
     /** Edit screens override the submit label; adding uses "Split expense". */
     submitLabel: String? = null,
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxWidth()) {
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
@@ -191,9 +267,9 @@ fun AddExpenseContent(
             )
             else -> Column(
                 Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
+                    .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
             ) {
                 if (state.groups.size > 1) {
                     FormLabel(stringResource(R.string.add_expense_group_label))

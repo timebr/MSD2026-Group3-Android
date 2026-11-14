@@ -1,8 +1,6 @@
 package com.example.oweowe.ui.groups
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -23,12 +21,42 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.repository.ErrorReason
+import com.example.oweowe.ui.components.AppBottomSheet
 import com.example.oweowe.ui.components.AppTopBar
+import com.example.oweowe.ui.components.SheetHeader
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonMessage
 
-/** S9 Create group (FR3). On success the ViewModel emits the new ID; we open its overview. */
+/**
+ * S9 Create group (FR3) as a bottom sheet. On success the ViewModel emits the
+ * new ID; the host opens its overview and dismisses the sheet.
+ */
+@Composable
+fun CreateGroupSheet(
+    container: AppContainer,
+    onDismiss: () -> Unit,
+    onGroupCreated: (String) -> Unit,
+) {
+    val viewModel: GroupsViewModel = viewModel(factory = GroupsViewModel.factory(container))
+    val state by viewModel.createState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(viewModel) {
+        viewModel.createdGroupId.collect { groupId -> onGroupCreated(groupId) }
+    }
+
+    AppBottomSheet(onDismiss = onDismiss) {
+        SheetHeader(stringResource(R.string.create_group_title))
+        CreateGroupContent(
+            state = state,
+            onNameChange = viewModel::updateName,
+            onDescriptionChange = viewModel::updateDescription,
+            onCreate = viewModel::createGroup,
+        )
+    }
+}
+
+/** Full-screen S9 kept as a fallback while the sheet route is validated. */
 @Composable
 fun CreateGroupScreen(
     container: AppContainer,
@@ -68,11 +96,10 @@ fun CreateGroupContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        verticalArrangement = Arrangement.Center,
         modifier = modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
     ) {
         OutlinedTextField(
             value = state.name,

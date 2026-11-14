@@ -1,8 +1,6 @@
 package com.example.oweowe.ui.groups
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -23,12 +21,45 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.repository.ErrorReason
+import com.example.oweowe.ui.components.AppBottomSheet
 import com.example.oweowe.ui.components.AppTopBar
+import com.example.oweowe.ui.components.SheetHeader
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonMessage
 
-/** S7 Edit group details (FR3). Saving shows the pending state; Done closes the screen. */
+/** S7 Edit group details (FR3) as a bottom sheet; Done dismisses it. */
+@Composable
+fun EditGroupSheet(
+    container: AppContainer,
+    groupId: String,
+    onDismiss: () -> Unit,
+) {
+    val viewModel: GroupDetailsViewModel = viewModel(
+        key = "edit-group-$groupId",
+        factory = GroupDetailsViewModel.factory(container, groupId),
+    )
+    val state by viewModel.editState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(state.writeState) {
+        if (state.writeState == WriteState.Done) {
+            viewModel.resetWriteState()
+            onDismiss()
+        }
+    }
+
+    AppBottomSheet(onDismiss = onDismiss) {
+        SheetHeader(stringResource(R.string.edit_group_title))
+        EditGroupContent(
+            state = state,
+            onNameChange = viewModel::updateEditName,
+            onDescriptionChange = viewModel::updateEditDescription,
+            onSave = viewModel::saveGroupDetails,
+        )
+    }
+}
+
+/** Full-screen S7 kept as a fallback while the sheet route is validated. */
 @Composable
 fun EditGroupScreen(
     container: AppContainer,
@@ -74,11 +105,10 @@ fun EditGroupContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        verticalArrangement = Arrangement.Center,
         modifier = modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
     ) {
         OutlinedTextField(
             value = state.name,

@@ -20,6 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -27,6 +30,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.oweowe.ui.components.SheetScoped
+import com.example.oweowe.ui.expense.AddExpenseSheet
 import com.example.oweowe.ui.navigation.NavRoutes
 import com.example.oweowe.ui.navigation.OweOweNavHost
 import com.example.oweowe.ui.theme.OweOweTheme
@@ -94,6 +99,10 @@ fun OweOweApp(container: AppContainer) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentTab = tabFor(backStackEntry?.destination?.route)
 
+    // S11: the bottom-bar Plus opens the Add expense sheet over the current tab,
+    // instead of switching to a separate destination.
+    var showAddExpenseSheet by rememberSaveable { mutableStateOf(false) }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
@@ -103,7 +112,9 @@ fun OweOweApp(container: AppContainer) {
                         NavigationBarItem(
                             selected = tab == currentTab,
                             onClick = {
-                                if (tab != currentTab) {
+                                if (tab.route == NavRoutes.AddExpense.ROUTE) {
+                                    showAddExpenseSheet = true
+                                } else if (tab != currentTab) {
                                     navController.navigate(tab.route) {
                                         popUpTo(navController.graph.findStartDestination().id) {
                                             saveState = true
@@ -129,5 +140,14 @@ fun OweOweApp(container: AppContainer) {
             // Only the bar's height; each screen's own Scaffold insets its top bar.
             modifier = Modifier.padding(bottom = padding.calculateBottomPadding()),
         )
+        if (showAddExpenseSheet) {
+            SheetScoped {
+                AddExpenseSheet(
+                    container = container,
+                    initialGroupId = null,
+                    onDismiss = { showAddExpenseSheet = false },
+                )
+            }
+        }
     }
 }

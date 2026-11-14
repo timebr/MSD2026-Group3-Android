@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -45,9 +47,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.model.User
+import com.example.oweowe.ui.components.AppBottomSheet
 import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.OfflineBanner
+import com.example.oweowe.ui.components.SheetHeader
+import com.example.oweowe.ui.components.SheetScoped
 import com.example.oweowe.ui.components.SignedAmount
 import com.example.oweowe.ui.components.asString
 import com.example.oweowe.ui.groups.contacts.ContactSuggestion
@@ -57,7 +62,110 @@ import com.example.oweowe.ui.groups.contacts.readContactsWithEmail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** S8 Group members with S10 Add member (FR3). */
+/** S8 Group members (FR3) as a bottom sheet, with S10 Add member on top. */
+@Composable
+fun ManageMembersSheet(
+    container: AppContainer,
+    groupId: String,
+    onDismiss: () -> Unit,
+) {
+    val viewModel: GroupDetailsViewModel = viewModel(
+        key = "manage-members-$groupId",
+        factory = GroupDetailsViewModel.factory(container, groupId),
+    )
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { message ->
+            snackbarHostState.showSnackbar(message.asString(context))
+        }
+    }
+
+    var showAddMember by rememberSaveable { mutableStateOf(false) }
+
+    AppBottomSheet(onDismiss = onDismiss) {
+        SheetHeader(stringResource(R.string.group_overview_members))
+        MembersSection(
+            state = state,
+            onRemoveMember = viewModel::removeMember,
+            onAddMember = { showAddMember = true },
+        )
+        SnackbarHost(snackbarHostState)
+    }
+
+    if (showAddMember) {
+        SheetScoped {
+            AddMemberSheet(
+                container = container,
+                groupId = groupId,
+                onDismiss = { showAddMember = false },
+            )
+        }
+    }
+}
+
+/** S10 Add member (FR3) as its own bottom sheet, opened from S8. */
+@Composable
+fun AddMemberSheet(
+    container: AppContainer,
+    groupId: String,
+    onDismiss: () -> Unit,
+) {
+    val viewModel: GroupDetailsViewModel = viewModel(
+        key = "add-member-$groupId",
+        factory = GroupDetailsViewModel.factory(container, groupId),
+    )
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { message ->
+            snackbarHostState.showSnackbar(message.asString(context))
+        }
+    }
+
+    // Contacts are read on the device and only used to suggest members (FR3).
+    val appContext = context.applicationContext
+    var contactsAllowed by remember { mutableStateOf(hasContactsPermission(appContext)) }
+    var contacts by remember { mutableStateOf<List<ContactSuggestion>>(emptyList()) }
+    var contactsDenied by rememberSaveable { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        contactsAllowed = granted
+        contactsDenied = !granted
+    }
+    LaunchedEffect(contactsAllowed) {
+        contacts = if (contactsAllowed) {
+            withContext(Dispatchers.IO) { readContactsWithEmail(appContext.contentResolver) }
+        } else {
+            emptyList()
+        }
+    }
+    // A clean emulator has no email contacts, so show demo people instead (D3).
+    val shownSuggestions = if (contacts.isEmpty()) DEMO_CONTACTS else contacts
+    val isDemoData = contactsAllowed && contacts.isEmpty()
+
+    AppBottomSheet(onDismiss = onDismiss) {
+        SheetHeader(stringResource(R.string.manage_members_add_title))
+        AddMemberSection(
+            state = state,
+            onAddMemberByEmail = viewModel::addMemberByEmail,
+            onAddMemberByPhone = viewModel::addMemberByPhone,
+            suggestions = shownSuggestions,
+            demoData = isDemoData,
+            contactsAllowed = contactsAllowed,
+            contactsDenied = contactsDenied,
+            onRequestContacts = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) },
+        )
+        SnackbarHost(snackbarHostState)
+    }
+}
+
+/** Full-screen S8 + S10 kept as a fallback while the sheet routes are validated. */
 @Composable
 fun ManageMembersScreen(
     container: AppContainer,
@@ -142,6 +250,79 @@ fun ManageMembersContent(
     contactsDenied: Boolean = false,
     onRequestContacts: () -> Unit = {},
 ) {
+    Column(modifier = modifier.fillMaxSize()) {
+        if (state.offline) OfflineBanner()
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                AddMemberSection(
+                    state = state,
+                    onAddMemberByEmail = onAddMemberByEmail,
+                    onAddMemberByPhone = onAddMemberByPhone,
+                    suggestions = suggestions,
+                    demoData = demoData,
+                    contactsAllowed = contactsAllowed,
+                    contactsDenied = contactsDenied,
+                    onRequestContacts = onRequestContacts,
+                )
+            }
+            item { HorizontalDivider() }
+            item {
+                Text(
+                    text = stringResource(R.string.group_overview_members),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            items(state.members, key = { it.user.uid }) { member ->
+                ManageMemberRow(member, enabled = !state.busy, onRemoveMember = onRemoveMember)
+            }
+        }
+    }
+}
+
+/** The members list and the "Add member" action shown in the S8 sheet. */
+@Composable
+private fun MembersSection(
+    state: GroupOverviewUiState,
+    onRemoveMember: (MemberRow) -> Unit,
+    onAddMember: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (state.offline) OfflineBanner()
+        state.members.forEach { member ->
+            ManageMemberRow(member, enabled = !state.busy, onRemoveMember = onRemoveMember)
+        }
+        OutlinedButton(
+            onClick = onAddMember,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.manage_members_add_title))
+        }
+    }
+}
+
+/** The S10 add form plus contact suggestions, reused by the sheet and the fallback screen. */
+@Composable
+fun AddMemberSection(
+    state: GroupOverviewUiState,
+    onAddMemberByEmail: (String) -> Unit,
+    onAddMemberByPhone: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    suggestions: List<ContactSuggestion> = emptyList(),
+    demoData: Boolean = false,
+    contactsAllowed: Boolean = false,
+    contactsDenied: Boolean = false,
+    onRequestContacts: () -> Unit = {},
+) {
     var mode by rememberSaveable { mutableStateOf(AddMemberMode.EMAIL) }
     var input by rememberSaveable { mutableStateOf("") }
     var showAllSuggestions by rememberSaveable { mutableStateOf(false) }
@@ -165,93 +346,67 @@ fun ManageMembersContent(
         input = ""
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        if (state.offline) OfflineBanner()
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
+    Column(modifier = modifier.fillMaxWidth()) {
+        AddMemberForm(
+            mode = mode,
+            input = input,
+            busy = state.busy,
+            onModeChange = { mode = it },
+            onInputChange = { input = it },
+            onSubmit = { submit() },
+        )
+        if (!contactsAllowed) {
+            ContactsAccessCard(
+                denied = contactsDenied,
+                onRequest = onRequestContacts,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        } else {
+            HorizontalDivider(Modifier.padding(top = 16.dp))
+            Column(Modifier.padding(top = 12.dp)) {
                 Text(
-                    text = stringResource(R.string.manage_members_add_title),
+                    text = stringResource(R.string.manage_members_contacts_title),
                     style = MaterialTheme.typography.titleMedium,
                 )
-            }
-            item {
-                AddMemberForm(
-                    mode = mode,
-                    input = input,
-                    busy = state.busy,
-                    onModeChange = { mode = it },
-                    onInputChange = { input = it },
-                    onSubmit = { submit() },
-                )
-            }
-            if (!contactsAllowed) {
-                item {
-                    ContactsAccessCard(denied = contactsDenied, onRequest = onRequestContacts)
+                if (demoData) {
+                    Text(
+                        text = stringResource(R.string.manage_members_contacts_demo_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
+            }
+            if (candidates.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.manage_members_contacts_all_added),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             } else {
-                item { HorizontalDivider() }
-                item {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.manage_members_contacts_title),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        if (demoData) {
-                            Text(
-                                text = stringResource(R.string.manage_members_contacts_demo_note),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                    }
+                visibleSuggestions.forEach { contact ->
+                    ContactSuggestionRow(
+                        contact = contact,
+                        enabled = !state.busy,
+                        onAdd = { onAddMemberByEmail(contact.email) },
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
                 }
-                if (candidates.isEmpty()) {
-                    item {
+                if (candidates.size > SUGGESTIONS_PREVIEW_COUNT) {
+                    TextButton(onClick = { showAllSuggestions = !showAllSuggestions }) {
                         Text(
-                            text = stringResource(R.string.manage_members_contacts_all_added),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                } else {
-                    items(visibleSuggestions, key = { "contact-${it.email}" }) { contact ->
-                        ContactSuggestionRow(
-                            contact = contact,
-                            enabled = !state.busy,
-                            onAdd = { onAddMemberByEmail(contact.email) },
-                        )
-                    }
-                    if (candidates.size > SUGGESTIONS_PREVIEW_COUNT) {
-                        item {
-                            TextButton(onClick = { showAllSuggestions = !showAllSuggestions }) {
-                                Text(
-                                    if (showAllSuggestions) {
-                                        stringResource(R.string.manage_members_contacts_show_less)
-                                    } else {
-                                        stringResource(
-                                            R.string.manage_members_contacts_show_all,
-                                            candidates.size,
-                                        )
-                                    },
+                            if (showAllSuggestions) {
+                                stringResource(R.string.manage_members_contacts_show_less)
+                            } else {
+                                stringResource(
+                                    R.string.manage_members_contacts_show_all,
+                                    candidates.size,
                                 )
-                            }
-                        }
+                            },
+                        )
                     }
                 }
-            }
-            item { HorizontalDivider() }
-            item {
-                Text(
-                    text = stringResource(R.string.group_overview_members),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
-            items(state.members, key = { it.user.uid }) { member ->
-                ManageMemberRow(member, enabled = !state.busy, onRemoveMember = onRemoveMember)
             }
         }
     }
@@ -262,8 +417,12 @@ private const val SUGGESTIONS_PREVIEW_COUNT = 5
 
 /** Explains why the app wants the contacts permission before the system prompt. */
 @Composable
-private fun ContactsAccessCard(denied: Boolean, onRequest: () -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
+private fun ContactsAccessCard(
+    denied: Boolean,
+    onRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(
                 text = stringResource(R.string.manage_members_contacts_title),
@@ -293,10 +452,11 @@ private fun ContactSuggestionRow(
     contact: ContactSuggestion,
     enabled: Boolean,
     onAdd: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         InitialsAvatar(name = contact.name)
         Column(
