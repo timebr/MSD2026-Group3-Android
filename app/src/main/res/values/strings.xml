@@ -50,7 +50,6 @@
     <string name="sign_in_email_label">Email</string>
     <string name="sign_in_password_label">Password</string>
     <string name="sign_in_button">Sign in</string>
-    <string name="sign_in_switch_to_register">New here? Create an account</string>
     <string name="sign_in_demo_hint">Demo: tim@test.dk / password</string>
 
     <!-- Register (S2) -->
@@ -60,7 +59,6 @@
     <string name="register_password_label">Password</string>
     <string name="register_phone_label">Phone</string>
     <string name="register_button">Create user</string>
-    <string name="register_switch_to_sign_in">Already have an account? Sign in</string>
 
     <!-- Home (S3) -->
     <string name="home_greeting">Hi, %1$s</string>
