@@ -14,6 +14,14 @@ class MoneyConversionTest {
     }
 
     @Test
+    fun formatsOreForAnInputFieldWithoutTheSuffix() {
+        assertEquals("16,67", formatOreForInput(1_667))
+        assertEquals("270,00", formatOreForInput(27_000))
+        assertEquals("0,05", formatOreForInput(5))
+        assertEquals("0,00", formatOreForInput(0))
+    }
+
+    @Test
     fun parsesValidAmounts() {
         assertEquals(1_600L, parseKr("16"))
         assertEquals(1_650L, parseKr("16,5"))

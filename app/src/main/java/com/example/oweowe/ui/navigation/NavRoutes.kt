@@ -8,6 +8,7 @@ package com.example.oweowe.ui.navigation
  * Home  Groups  AddExpense  Activity  Profile   (primary / bottom bar)
  * Groups -> CreateGroup -> GroupOverview
  * Groups -> GroupOverview -> EditGroup | ManageMembers | AddExpense | Groups (back)
+ * GroupOverview -> EditExpense
  * Profile -> EditProfile | NotificationSettings
  * ```
  */
@@ -47,6 +48,17 @@ sealed interface NavRoutes {
 
     data object Profile : NavRoutes {
         const val ROUTE = "profile"
+    }
+
+    /** S11 with the stored values prefilled; any group member may save. */
+    data object EditExpense : NavRoutes {
+        const val ROUTE = "edit_expense"
+        const val GROUP_ID_ARG = "groupId"
+        const val EXPENSE_ID_ARG = "expenseId"
+        const val ROUTE_WITH_ARGS = "$ROUTE/{$GROUP_ID_ARG}/{$EXPENSE_ID_ARG}"
+
+        fun route(groupId: String, expenseId: String): String =
+            "$ROUTE/$groupId/$expenseId"
     }
 
     /** ---- groups ---- */

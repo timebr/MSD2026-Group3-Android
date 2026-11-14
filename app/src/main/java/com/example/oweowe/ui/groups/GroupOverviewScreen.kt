@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.model.Expense
+import com.example.oweowe.data.model.ExpenseType
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
 import com.example.oweowe.domain.formatKr
@@ -68,6 +70,7 @@ fun GroupOverviewScreen(
     onEditGroup: (String) -> Unit,
     onManageMembers: (String) -> Unit,
     onAddExpense: (String) -> Unit,
+    onEditExpense: (String) -> Unit,
 ) {
     val viewModel: GroupDetailsViewModel = viewModel(
         key = "group-details-$groupId",
@@ -81,6 +84,8 @@ fun GroupOverviewScreen(
     val noReceiptMessage = stringResource(R.string.group_overview_no_receipt)
     // FR10: the receipt path shown in the dialog, or null when it is closed.
     var receiptToShow by remember { mutableStateOf<String?>(null) }
+    // The expense awaiting delete confirmation, or null when no dialog is open.
+    var expenseToDelete by remember { mutableStateOf<Expense?>(null) }
     LaunchedEffect(viewModel) {
         viewModel.messages.collect { message ->
             snackbarHostState.showSnackbar(message.asString(context))
@@ -102,6 +107,8 @@ fun GroupOverviewScreen(
             onEditGroup = { onEditGroup(groupId) },
             onManageMembers = { onManageMembers(groupId) },
             onAddExpense = { onAddExpense(groupId) },
+            onEditExpense = onEditExpense,
+            onDeleteExpense = { expense -> expenseToDelete = expense },
             onRemind = viewModel::sendReminder,
             onTransactionClick = { expense ->
                 val receipt = expense.receiptUri
@@ -117,6 +124,16 @@ fun GroupOverviewScreen(
     receiptToShow?.let { path ->
         ReceiptDialog(path = path, onDismiss = { receiptToShow = null })
     }
+    expenseToDelete?.let { expense ->
+        DeleteExpenseDialog(
+            expense = expense,
+            onConfirm = {
+                viewModel.deleteExpense(expense)
+                expenseToDelete = null
+            },
+            onDismiss = { expenseToDelete = null },
+        )
+    }
 }
 
 @Composable
@@ -125,6 +142,8 @@ fun GroupOverviewContent(
     onEditGroup: () -> Unit,
     onManageMembers: () -> Unit,
     onAddExpense: () -> Unit,
+    onEditExpense: (String) -> Unit,
+    onDeleteExpense: (Expense) -> Unit,
     onRemind: (MemberRow) -> Unit,
     modifier: Modifier = Modifier,
     onTransactionClick: (Expense) -> Unit = {},
@@ -134,7 +153,16 @@ fun GroupOverviewContent(
         when {
             state.loading -> LoadingState()
             state.notFound -> ErrorState(message = stringResource(R.string.group_overview_not_found))
-            else -> GroupOverviewList(state, onEditGroup, onManageMembers, onAddExpense, onRemind, onTransactionClick)
+            else -> GroupOverviewList(
+                state = state,
+                onEditGroup = onEditGroup,
+                onManageMembers = onManageMembers,
+                onAddExpense = onAddExpense,
+                onEditExpense = onEditExpense,
+                onDeleteExpense = onDeleteExpense,
+                onRemind = onRemind,
+                onTransactionClick = onTransactionClick,
+            )
         }
     }
 }
@@ -145,6 +173,8 @@ private fun GroupOverviewList(
     onEditGroup: () -> Unit,
     onManageMembers: () -> Unit,
     onAddExpense: () -> Unit,
+    onEditExpense: (String) -> Unit,
+    onDeleteExpense: (Expense) -> Unit,
     onRemind: (MemberRow) -> Unit,
     onTransactionClick: (Expense) -> Unit,
 ) {
@@ -229,6 +259,17 @@ private fun GroupOverviewList(
                 expense = transaction.expense,
                 payerName = transaction.payerName,
                 onClick = { onTransactionClick(transaction.expense) },
+                // Settlements are not an expense form; only EXPENSE rows are editable or deletable.
+                onEdit = if (transaction.expense.type == ExpenseType.EXPENSE) {
+                    { onEditExpense(transaction.expense.id) }
+                } else {
+                    null
+                },
+                onDelete = if (transaction.expense.type == ExpenseType.EXPENSE) {
+                    { onDeleteExpense(transaction.expense) }
+                } else {
+                    null
+                },
             )
         }
         item { Spacer(Modifier.height(16.dp)) }
@@ -275,6 +316,42 @@ private fun GroupMemberRow(
             }
         }
     }
+}
+
+/** Confirms that the expense is really deleted, for the whole group. */
+@Composable
+private fun DeleteExpenseDialog(
+    expense: Expense,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val name = expense.description.ifBlank { expense.category }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.delete_expense_title)) },
+        text = {
+            Text(
+                stringResource(
+                    R.string.delete_expense_message,
+                    name,
+                    formatKr(expense.amountOre),
+                ),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    text = stringResource(R.string.action_delete),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
 }
 
 /** FR10: the receipt image of one transaction, read-only. */
@@ -359,6 +436,8 @@ private fun GroupOverviewPreview() {
             onEditGroup = {},
             onManageMembers = {},
             onAddExpense = {},
+            onEditExpense = {},
+            onDeleteExpense = {},
             onRemind = {},
         )
     }
@@ -373,6 +452,8 @@ private fun GroupOverviewLoadingPreview() {
             onEditGroup = {},
             onManageMembers = {},
             onAddExpense = {},
+            onEditExpense = {},
+            onDeleteExpense = {},
             onRemind = {},
         )
     }
@@ -387,6 +468,8 @@ private fun GroupOverviewNotFoundPreview() {
             onEditGroup = {},
             onManageMembers = {},
             onAddExpense = {},
+            onEditExpense = {},
+            onDeleteExpense = {},
             onRemind = {},
         )
     }

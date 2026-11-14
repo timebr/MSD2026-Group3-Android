@@ -15,6 +15,7 @@ import com.example.oweowe.ui.activity.ActivityScreen
 import com.example.oweowe.ui.auth.RegisterScreen
 import com.example.oweowe.ui.auth.SignInScreen
 import com.example.oweowe.ui.expense.AddExpenseScreen
+import com.example.oweowe.ui.expense.EditExpenseScreen
 import com.example.oweowe.ui.groups.CreateGroupScreen
 import com.example.oweowe.ui.groups.EditGroupScreen
 import com.example.oweowe.ui.groups.GroupOverviewScreen
@@ -143,6 +144,23 @@ fun OweOweNavHost(
                 onEditGroup = { navController.navigate(NavRoutes.EditGroup.route(groupId)) },
                 onManageMembers = { navController.navigate(NavRoutes.ManageMembers.route(groupId)) },
                 onAddExpense = { navController.navigate(NavRoutes.AddExpense.route(groupId)) },
+                onEditExpense = { expenseId ->
+                    navController.navigate(NavRoutes.EditExpense.route(groupId, expenseId))
+                },
+            )
+        }
+        composable(
+            route = NavRoutes.EditExpense.ROUTE_WITH_ARGS,
+            arguments = listOf(
+                navArgument(NavRoutes.EditExpense.GROUP_ID_ARG) { type = NavType.StringType },
+                navArgument(NavRoutes.EditExpense.EXPENSE_ID_ARG) { type = NavType.StringType },
+            ),
+        ) { entry ->
+            EditExpenseScreen(
+                container = container,
+                groupId = entry.arguments?.getString(NavRoutes.EditExpense.GROUP_ID_ARG).orEmpty(),
+                expenseId = entry.arguments?.getString(NavRoutes.EditExpense.EXPENSE_ID_ARG).orEmpty(),
+                onBack = { navController.popBackStack() },
             )
         }
         composable(

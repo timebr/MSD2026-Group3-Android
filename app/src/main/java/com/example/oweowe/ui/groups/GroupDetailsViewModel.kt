@@ -256,6 +256,24 @@ class GroupDetailsViewModel(
         }
     }
 
+    /** FR4: any group member may delete an expense from the group overview. */
+    fun deleteExpense(expense: Expense) {
+        if (busy.value) return
+        busy.value = true
+        viewModelScope.launch {
+            val result = expenseRepository.deleteExpense(groupId, expense.id)
+            busy.value = false
+            val message = when (result) {
+                is AppResult.Success -> UiMessage(
+                    R.string.group_overview_expense_deleted,
+                    listOf(expense.description.ifBlank { expense.category }),
+                )
+                is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
+            }
+            _messages.emit(message)
+        }
+    }
+
     /** FR8 from the Group overview as well as Home. */
     fun sendReminder(member: MemberRow) {
         if (busy.value) return
