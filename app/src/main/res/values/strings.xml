@@ -80,7 +80,13 @@
     <string name="home_no_groups_message">Create a group to start sharing expenses.</string>
     <string name="home_go_to_groups">Go to groups</string>
     <string name="home_synced_in_background">\"%1$s\" was synced in the background.</string>
-    <string name="home_recent_group_label">Most recent activity</string>
+    <string name="home_current_group_label">Current group</string>
+    <string name="home_see_list_view">See list view</string>
+    <string name="home_total_balance_label">Total balance</string>
+    <string name="home_overall_owed">Overall, you are owed</string>
+    <string name="home_overall_owe">Overall, you owe</string>
+    <string name="home_overall_settled">Overall, you are settled up</string>
+    <string name="cd_open_settings">Open settings</string>
 
     <!-- Groups (S4) -->
     <string name="groups_title">Your groups</string>

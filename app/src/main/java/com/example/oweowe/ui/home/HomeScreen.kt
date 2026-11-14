@@ -11,8 +11,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -36,11 +40,11 @@ import com.example.oweowe.R
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
 import com.example.oweowe.domain.formatKr
+import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
 import com.example.oweowe.ui.components.ErrorState
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.LoadingState
-import com.example.oweowe.ui.components.MyBalanceText
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SignedAmount
 import com.example.oweowe.ui.components.asString
@@ -51,6 +55,7 @@ fun HomeScreen(
     container: AppContainer,
     onAddExpense: (groupId: String?) -> Unit,
     onGoToGroups: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val state by homeViewModel.uiState.collectAsStateWithLifecycle()
@@ -63,7 +68,23 @@ fun HomeScreen(
         }
     }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+    Scaffold(
+        topBar = {
+            AppTopBar(
+                title = state.me?.let { stringResource(R.string.home_greeting, it.fullName) }
+                    ?: stringResource(R.string.nav_home),
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = stringResource(R.string.cd_open_settings),
+                        )
+                    }
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
         HomeContent(
             state = state,
             onAddExpense = { onAddExpense(state.group?.id) },
@@ -92,7 +113,7 @@ fun HomeContent(
                 message = stringResource(R.string.home_no_groups_message),
                 action = { Button(onClick = onGoToGroups) { Text(stringResource(R.string.home_go_to_groups)) } },
             )
-            else -> HomeList(state, onAddExpense, onRemind)
+            else -> HomeList(state, onAddExpense, onRemind, onGoToGroups)
         }
     }
 }
@@ -102,26 +123,14 @@ private fun HomeList(
     state: HomeUiState,
     onAddExpense: () -> Unit,
     onRemind: (MemberBalance) -> Unit,
+    onGoToGroups: () -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item {
-            Text(
-                text = stringResource(R.string.home_greeting, state.me?.fullName.orEmpty()),
-                style = MaterialTheme.typography.headlineSmall,
-            )
-        }
-        item {
-            Text(
-                text = stringResource(R.string.home_recent_group_label),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-        item { CurrentGroupCard(state, onAddExpense) }
+        item { CurrentGroupCard(state, onGoToGroups) }
+        item { TotalBalanceCard(state, onAddExpense) }
         item {
             Text(
                 text = stringResource(R.string.home_balances_title),
@@ -147,12 +156,17 @@ private fun HomeList(
     }
 }
 
-/** S3: current group card with own balance and the Add expense action (FR4, FR6). */
+/** S3: current group card, with a shortcut to the groups list (FR4). */
 @Composable
-private fun CurrentGroupCard(state: HomeUiState, onAddExpense: () -> Unit) {
+private fun CurrentGroupCard(state: HomeUiState, onGoToGroups: () -> Unit) {
     val group = state.group ?: return
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.home_current_group_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Text(group.name, style = MaterialTheme.typography.titleLarge)
             if (group.description.isNotBlank()) {
                 Text(
@@ -167,7 +181,40 @@ private fun CurrentGroupCard(state: HomeUiState, onAddExpense: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            MyBalanceText(state.myBalanceOre, Modifier.padding(top = 12.dp))
+            TextButton(
+                onClick = onGoToGroups,
+                modifier = Modifier.padding(top = 4.dp),
+            ) {
+                Text(stringResource(R.string.home_see_list_view))
+            }
+        }
+    }
+}
+
+/** S3: total balance card with the Add expense action (FR5, FR6). */
+@Composable
+private fun TotalBalanceCard(state: HomeUiState, onAddExpense: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.home_total_balance_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SignedAmount(
+                ore = state.myBalanceOre,
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Text(
+                text = when {
+                    state.myBalanceOre > 0 -> stringResource(R.string.home_overall_owed)
+                    state.myBalanceOre < 0 -> stringResource(R.string.home_overall_owe)
+                    else -> stringResource(R.string.home_overall_settled)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Button(onClick = onAddExpense, modifier = Modifier.padding(top = 12.dp)) {
                 Text(stringResource(R.string.home_add_expense))
             }

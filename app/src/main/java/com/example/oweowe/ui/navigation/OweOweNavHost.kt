@@ -81,6 +81,7 @@ fun OweOweNavHost(
                     showAddExpense = true
                 },
                 onGoToGroups = { navController.navigateToTab(NavRoutes.Groups.ROUTE) },
+                onOpenSettings = { navController.navigateToTab(NavRoutes.Profile.ROUTE) },
             )
             // S11: adding an expense opens as a bottom sheet over the dashboard.
             if (showAddExpense) {
