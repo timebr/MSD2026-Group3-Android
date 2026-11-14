@@ -11,6 +11,7 @@ import com.example.oweowe.data.repository.fake.SeedData
 import com.example.oweowe.ui.MainDispatcherRule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -69,5 +70,20 @@ class GroupDetailsViewModelTest {
 
         assertTrue(state.transactions.none { it.expense.groupId == otherGroupId })
         assertEquals(6, state.transactions.size)
+    }
+
+    @Test
+    fun deleteExpense_removesItForAnyMember() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db)
+        val state = viewModel.uiState.first { !it.loading }
+        val expense = state.transactions.first { it.expense.id == "e2" }.expense   // created by Anna
+
+        viewModel.deleteExpense(expense)
+        advanceUntilIdle()
+
+        val remaining = FakeExpenseRepository(db).observeExpenses(SeedData.FLAT).first()
+        assertTrue(remaining.none { it.id == "e2" })
+        assertEquals(false, viewModel.uiState.value.busy)
     }
 }

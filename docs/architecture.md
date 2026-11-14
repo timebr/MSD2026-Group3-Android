@@ -69,7 +69,7 @@ ViewModels sit between the views (Compose screens) and the backend
 | `HomeViewModel` | S3 | current group, own balance, balances per member, remind |
 | `GroupsViewModel` | S4, S9 | my groups, selected group overview, create group |
 | `GroupDetailsViewModel` | S7, S8, S10 | edit details, members, add by email, remove (balance 0) |
-| `AddExpenseViewModel` | S11 | group, amount, payer, split selection, save |
+| `AddExpenseViewModel` | S11 | group, amount, payer, split selection, add or edit an expense |
 | `ActivityViewModel` | S5 | total spent, balance, transaction list with sync status, delete, settle up |
 | `ProfileViewModel` | S6 | profile, push setting |
 
@@ -98,7 +98,10 @@ groups/{groupId}              name, description, createdBy, createdAt,
   users can be added.
 - Settling up is an expense with `type = SETTLEMENT`: the debtor pays, the
   creditor is the only entry in `splitAmong`, the amount is the open balance.
-- Expenses are never edited; only `createdBy` may delete one.
+- Any group member may edit or delete an expense (purpose, category, amount,
+  payer, split, receipt); the expense stays in its group and keeps its creator.
+  Deleting removes the row for everyone. Settlements are balance corrections,
+  so they can be neither edited nor deleted.
 - A member can only be removed when all their pairwise balances are 0.
 
 ## Repository interfaces
@@ -113,7 +116,7 @@ returned as named results, not thrown.
 | `AuthRepository` | register, sign in, sign out, current user | S1, S2 |
 | `UserRepository` | own profile, push setting, find user by email | S6, S10 |
 | `GroupRepository` | my groups, create, edit details, add / remove member | S4, S7–S10 |
-| `ExpenseRepository` | expenses with sync status, add, delete, settle up | S3, S5, S11 |
+| `ExpenseRepository` | expenses with sync status, add, edit, delete, settle up | S3, S5, S11 |
 | `ReminderRepository` | send a reminder | S3, S4 |
 | `NotificationService` | local notifications for FR7, FR8, NFR5 | all |
 
@@ -163,7 +166,7 @@ All of it is pure Kotlin with unit tests.
 | --- | --- | --- |
 | `users/{uid}` | any signed-in user | only the user themselves |
 | `groups/{id}` | members only | create: creator in `memberIds`; update: members |
-| `…/expenses/{id}` | members only | create: member, `createdBy` = own uid, amount > 0; delete: `createdBy`; update: never |
+| `…/expenses/{id}` | members only | create: member, `createdBy` = own uid, amount > 0; update and delete: members (any member may edit or delete an expense) |
 | `…/reminders/{id}` | members only | create: member, `from` = own uid |
 
 The rules cannot calculate balances, so "remove only with balance 0" and

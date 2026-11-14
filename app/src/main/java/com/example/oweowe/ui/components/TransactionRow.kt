@@ -5,6 +5,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +30,7 @@ import com.example.oweowe.data.model.SyncStatus
  * overview leaves it null, because there every row belongs to that group.
  *
  * When [onClick] is set the row is tappable (FR10 receipts).
+ * [onEdit] and [onDelete] add the actions used by the group overview.
  */
 @Composable
 fun TransactionRow(
@@ -31,6 +39,8 @@ fun TransactionRow(
     modifier: Modifier = Modifier,
     groupName: String? = null,
     onClick: (() -> Unit)? = null,
+    onEdit: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -72,6 +82,26 @@ fun TransactionRow(
             }
         }
         SignedAmount(ore = expense.amountOre)
+        if (onEdit != null) {
+            // Compact 36 dp buttons keep the two actions tight next to the amount.
+            IconButton(onClick = onEdit, modifier = Modifier.requiredSize(36.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = stringResource(R.string.cd_edit_expense),
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+        if (onDelete != null) {
+            IconButton(onClick = onDelete, modifier = Modifier.requiredSize(36.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.cd_delete_expense),
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
     }
 }
 
