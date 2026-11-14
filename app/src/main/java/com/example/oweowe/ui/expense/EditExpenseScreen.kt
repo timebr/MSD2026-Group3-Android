@@ -1,9 +1,7 @@
 package com.example.oweowe.ui.expense
 
 import android.net.Uri
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -12,7 +10,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -22,7 +19,8 @@ import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
-import com.example.oweowe.ui.components.AppTopBar
+import com.example.oweowe.ui.components.AppBottomSheet
+import com.example.oweowe.ui.components.SheetHeader
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.canTakePhoto
 import com.example.oweowe.ui.components.copyReceiptToAppStorage
@@ -33,15 +31,15 @@ import java.io.File
 import kotlinx.coroutines.launch
 
 /**
- * S11 Edit expense (FR4). The exact same form as [AddExpenseScreen], prefilled
- * with the stored expense. Any group member may save the changes.
+ * S11 Edit expense (FR4) as a bottom sheet. The same form as add expense,
+ * prefilled with the stored expense. Any group member may save the changes.
  */
 @Composable
-fun EditExpenseScreen(
+fun EditExpenseSheet(
     container: AppContainer,
     groupId: String,
     expenseId: String,
-    onBack: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     val viewModel: AddExpenseViewModel = viewModel(
         key = "edit-expense-$expenseId",
@@ -86,19 +84,12 @@ fun EditExpenseScreen(
     LaunchedEffect(state.writeState) {
         if (state.writeState == WriteState.Done) {
             viewModel.resetWriteState()
-            onBack()
+            onDismiss()
         }
     }
 
-    Scaffold(
-        topBar = {
-            AppTopBar(
-                title = stringResource(R.string.edit_expense_title),
-                showBack = true,
-                onBack = onBack,
-            )
-        },
-    ) { padding ->
+    AppBottomSheet(onDismiss = onDismiss) {
+        SheetHeader(stringResource(R.string.edit_expense_title))
         AddExpenseContent(
             state = state,
             onDescriptionChange = viewModel::updateDescription,
@@ -136,7 +127,6 @@ fun EditExpenseScreen(
                 }
             },
             submitLabel = stringResource(R.string.edit_expense_submit),
-            modifier = Modifier.padding(padding),
         )
     }
 }

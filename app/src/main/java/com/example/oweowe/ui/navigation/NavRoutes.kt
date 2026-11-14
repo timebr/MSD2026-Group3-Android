@@ -6,13 +6,12 @@ package com.example.oweowe.ui.navigation
  * ```
  * SignIn / Register (toggle)              (before authentication)
  * Home  Groups  AddExpense  Activity  Profile   (primary / bottom bar)
- * Groups -> GroupOverview
- * GroupOverview -> EditExpense | Groups (back)
+ * Groups -> GroupOverview -> Groups (back)
  * ```
  *
- * Add expense, create/edit group and manage members open as bottom sheets, so
- * they have no destination of their own; [AddExpense] only names the bottom-bar
- * Plus tab that opens its sheet.
+ * Add/edit expense, create/edit group and manage members open as bottom
+ * sheets, so they have no destination of their own; [AddExpense] only names
+ * the bottom-bar Plus tab that opens its sheet.
  */
 sealed interface NavRoutes {
 
@@ -41,17 +40,6 @@ sealed interface NavRoutes {
 
     data object Profile : NavRoutes {
         const val ROUTE = "profile"
-    }
-
-    /** S11 with the stored values prefilled; any group member may save. */
-    data object EditExpense : NavRoutes {
-        const val ROUTE = "edit_expense"
-        const val GROUP_ID_ARG = "groupId"
-        const val EXPENSE_ID_ARG = "expenseId"
-        const val ROUTE_WITH_ARGS = "$ROUTE/{$GROUP_ID_ARG}/{$EXPENSE_ID_ARG}"
-
-        fun route(groupId: String, expenseId: String): String =
-            "$ROUTE/$groupId/$expenseId"
     }
 
     /** ---- groups ---- */

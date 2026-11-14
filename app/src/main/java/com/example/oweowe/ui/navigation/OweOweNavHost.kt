@@ -19,7 +19,7 @@ import com.example.oweowe.ui.activity.ActivityScreen
 import com.example.oweowe.ui.auth.AuthScreen
 import com.example.oweowe.ui.components.SheetScoped
 import com.example.oweowe.ui.expense.AddExpenseSheet
-import com.example.oweowe.ui.expense.EditExpenseScreen
+import com.example.oweowe.ui.expense.EditExpenseSheet
 import com.example.oweowe.ui.groups.CreateGroupSheet
 import com.example.oweowe.ui.groups.EditGroupSheet
 import com.example.oweowe.ui.groups.GroupOverviewScreen
@@ -151,6 +151,7 @@ fun OweOweNavHost(
             var showEditGroup by rememberSaveable { mutableStateOf(false) }
             var showManageMembers by rememberSaveable { mutableStateOf(false) }
             var showAddExpense by rememberSaveable { mutableStateOf(false) }
+            var editingExpenseId by rememberSaveable { mutableStateOf<String?>(null) }
             GroupOverviewScreen(
                 container = container,
                 groupId = groupId,
@@ -158,9 +159,7 @@ fun OweOweNavHost(
                 onEditGroup = { showEditGroup = true },
                 onManageMembers = { showManageMembers = true },
                 onAddExpense = { showAddExpense = true },
-                onEditExpense = { expenseId ->
-                    navController.navigate(NavRoutes.EditExpense.route(groupId, expenseId))
-                },
+                onEditExpense = { expenseId -> editingExpenseId = expenseId },
             )
             // S7 / S8 / S11: group actions open as bottom sheets over the overview.
             if (showEditGroup) {
@@ -190,20 +189,16 @@ fun OweOweNavHost(
                     )
                 }
             }
-        }
-        composable(
-            route = NavRoutes.EditExpense.ROUTE_WITH_ARGS,
-            arguments = listOf(
-                navArgument(NavRoutes.EditExpense.GROUP_ID_ARG) { type = NavType.StringType },
-                navArgument(NavRoutes.EditExpense.EXPENSE_ID_ARG) { type = NavType.StringType },
-            ),
-        ) { entry ->
-            EditExpenseScreen(
-                container = container,
-                groupId = entry.arguments?.getString(NavRoutes.EditExpense.GROUP_ID_ARG).orEmpty(),
-                expenseId = entry.arguments?.getString(NavRoutes.EditExpense.EXPENSE_ID_ARG).orEmpty(),
-                onBack = { navController.popBackStack() },
-            )
+            editingExpenseId?.let { expenseId ->
+                SheetScoped {
+                    EditExpenseSheet(
+                        container = container,
+                        groupId = groupId,
+                        expenseId = expenseId,
+                        onDismiss = { editingExpenseId = null },
+                    )
+                }
+            }
         }
     }
 }
