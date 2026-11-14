@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,8 +18,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -62,6 +65,7 @@ fun GroupsScreen(
         GroupsContent(
             state = state,
             onOpenGroup = onOpenGroup,
+            onSelectGroup = viewModel::selectGroup,
             modifier = Modifier.padding(padding),
         )
     }
@@ -71,6 +75,7 @@ fun GroupsScreen(
 fun GroupsContent(
     state: GroupsUiState,
     onOpenGroup: (String) -> Unit,
+    onSelectGroup: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -85,7 +90,8 @@ fun GroupsContent(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                state.selectedGroup?.let { selected ->
+                val selected = state.selectedGroup
+                if (selected != null) {
                     item {
                         SelectedGroupCard(
                             summary = selected,
@@ -93,8 +99,16 @@ fun GroupsContent(
                         )
                     }
                 }
-                items(state.groups, key = { it.group.id }) { summary ->
-                    GroupCard(summary = summary, onClick = { onOpenGroup(summary.group.id) })
+                // The selected group is shown once, above; the rest stay as rows.
+                items(
+                    state.groups.filter { it.group.id != selected?.group?.id },
+                    key = { it.group.id },
+                ) { summary ->
+                    GroupCard(
+                        summary = summary,
+                        onClick = { onOpenGroup(summary.group.id) },
+                        onSelect = { onSelectGroup(summary.group.id) },
+                    )
                 }
             }
         }
@@ -141,7 +155,11 @@ private fun SelectedGroupCard(summary: GroupSummary, onClick: () -> Unit) {
 }
 
 @Composable
-private fun GroupCard(summary: GroupSummary, onClick: () -> Unit) {
+private fun GroupCard(
+    summary: GroupSummary,
+    onClick: () -> Unit,
+    onSelect: (() -> Unit)? = null,
+) {
     val group = summary.group
     Card(
         modifier = Modifier
@@ -157,18 +175,27 @@ private fun GroupCard(summary: GroupSummary, onClick: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(
-                text = stringResource(R.string.common_member_count, group.memberIds.size),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            Text(
-                text = groupStatusText(summary),
-                style = MaterialTheme.typography.bodyMedium,
-                color = groupStatusColor(summary),
-                modifier = Modifier.padding(top = 4.dp),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.common_member_count, group.memberIds.size),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    Text(
+                        text = groupStatusText(summary),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = groupStatusColor(summary),
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                if (onSelect != null) {
+                    TextButton(onClick = onSelect) {
+                        Text(stringResource(R.string.groups_select))
+                    }
+                }
+            }
         }
     }
 }
@@ -210,6 +237,7 @@ private fun GroupsContentPreview() {
                 ),
             ),
             onOpenGroup = {},
+            onSelectGroup = {},
         )
     }
 }
@@ -218,7 +246,7 @@ private fun GroupsContentPreview() {
 @Composable
 private fun GroupsLoadingPreview() {
     MaterialTheme {
-        GroupsContent(state = GroupsUiState(loading = true), onOpenGroup = {})
+        GroupsContent(state = GroupsUiState(loading = true), onOpenGroup = {}, onSelectGroup = {})
     }
 }
 
@@ -226,7 +254,7 @@ private fun GroupsLoadingPreview() {
 @Composable
 private fun GroupsEmptyPreview() {
     MaterialTheme {
-        GroupsContent(state = GroupsUiState(loading = false), onOpenGroup = {})
+        GroupsContent(state = GroupsUiState(loading = false), onOpenGroup = {}, onSelectGroup = {})
     }
 }
 
@@ -237,6 +265,7 @@ private fun GroupsOfflinePreview() {
         GroupsContent(
             state = GroupsUiState(loading = false, offline = true, groups = emptyList()),
             onOpenGroup = {},
+            onSelectGroup = {},
         )
     }
 }

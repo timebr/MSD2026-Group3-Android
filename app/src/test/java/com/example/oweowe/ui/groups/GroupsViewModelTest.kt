@@ -64,7 +64,7 @@ class GroupsViewModelTest {
     }
 
     @Test
-    fun uiState_selectedGroupFollowsTheMostRecentActivity() = runTest {
+    fun uiState_selectGroupMakesTheChosenGroupSelected() = runTest {
         val db = backend(backgroundScope)
         val viewModel = viewModel(db, AlwaysOnlineObserver)
         val createdIds = mutableListOf<String>()
@@ -72,17 +72,20 @@ class GroupsViewModelTest {
             viewModel.createdGroupId.toList(createdIds)
         }
 
-        // Only the seed group exists, so it is the selected one.
-        assertEquals(SeedData.FLAT, viewModel.uiState.first { !it.loading }.selectedGroup?.group?.id)
-
         viewModel.updateName("Holiday")
         viewModel.createGroup()
         advanceUntilIdle()
         collector.cancel()
+        val newId = createdIds.single()
 
-        val id = createdIds.single()
-        val state = viewModel.uiState.first { it.selectedGroup?.group?.id == id }
-        assertEquals(id, state.selectedGroup?.group?.id)         // newest activity wins
+        // Default selection is the group with the most recent activity (the new one).
+        val initial = viewModel.uiState.first { it.groups.size == 2 }
+        assertEquals(newId, initial.selectedGroup?.group?.id)
+
+        // Picking a group makes it the selected one; all groups stay listed.
+        viewModel.selectGroup(SeedData.FLAT)
+        val state = viewModel.uiState.first { it.selectedGroup?.group?.id == SeedData.FLAT }
+        assertEquals(SeedData.FLAT, state.selectedGroup?.group?.id)
         assertEquals(2, state.groups.size)
     }
 
