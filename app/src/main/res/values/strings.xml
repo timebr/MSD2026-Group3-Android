@@ -184,7 +184,7 @@
     <string name="activity_empty_message">Expenses you add will show up here.</string>
     <string name="activity_settlement">Settlement</string>
     <string name="activity_expense_fallback">Expense</string>
-    <string name="activity_transaction_subtitle">%1$s · %2$s</string>
+    <string name="activity_transaction_subtitle">%1$s - %2$s</string>
     <string name="transaction_paid_by">Paid by %1$s</string>
     <string name="transaction_view_receipt">View receipt</string>
     <string name="activity_reminders_title">Reminders for you</string>
