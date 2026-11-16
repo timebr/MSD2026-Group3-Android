@@ -6,6 +6,7 @@ import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -19,6 +20,7 @@ internal fun Throwable.toErrorReason(): ErrorReason = when (this) {
     // order matters: WeakPassword is a special kind of InvalidCredentials
     is FirebaseAuthWeakPasswordException -> ErrorReason.WEAK_PASSWORD
     is FirebaseAuthUserCollisionException -> ErrorReason.EMAIL_ALREADY_IN_USE
+    is FirebaseAuthRecentLoginRequiredException -> ErrorReason.REAUTH_REQUIRED
     is FirebaseAuthInvalidCredentialsException ->
         if (errorCode == "ERROR_INVALID_EMAIL") ErrorReason.INVALID_EMAIL else ErrorReason.WRONG_CREDENTIALS
     is FirebaseAuthInvalidUserException -> ErrorReason.WRONG_CREDENTIALS

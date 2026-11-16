@@ -5,6 +5,11 @@ data class User(
     val fullName: String = "",
     val email: String = "",        // always lower case
     val phone: String = "",
+    /**
+     * [phone] reduced to its digits (a leading Danish +45 is dropped), so
+     * "add member by phone" can query it without depending on formatting.
+     */
+    val phoneNormalized: String = "",
     val pushEnabled: Boolean = true,
     val createdAt: Long = 0,
     /**

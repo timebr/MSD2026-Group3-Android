@@ -14,6 +14,7 @@ fun errorReasonMessage(reason: ErrorReason): String = stringResource(
         ErrorReason.EMAIL_ALREADY_IN_USE -> R.string.error_email_in_use
         ErrorReason.WEAK_PASSWORD -> R.string.error_weak_password
         ErrorReason.WRONG_CREDENTIALS -> R.string.error_wrong_credentials
+        ErrorReason.REAUTH_REQUIRED -> R.string.error_reauth_required
         ErrorReason.NO_ACCOUNT_WITH_EMAIL -> R.string.error_no_account_with_email
         ErrorReason.NO_ACCOUNT_WITH_PHONE -> R.string.error_no_account_with_phone
         ErrorReason.ALREADY_MEMBER -> R.string.error_already_member
@@ -33,6 +34,7 @@ fun errorReasonRes(reason: ErrorReason): Int = when (reason) {
     ErrorReason.EMAIL_ALREADY_IN_USE -> R.string.error_email_in_use
     ErrorReason.WEAK_PASSWORD -> R.string.error_weak_password
     ErrorReason.WRONG_CREDENTIALS -> R.string.error_wrong_credentials
+    ErrorReason.REAUTH_REQUIRED -> R.string.error_reauth_required
     ErrorReason.NO_ACCOUNT_WITH_EMAIL -> R.string.error_no_account_with_email
     ErrorReason.NO_ACCOUNT_WITH_PHONE -> R.string.error_no_account_with_phone
     ErrorReason.ALREADY_MEMBER -> R.string.error_already_member

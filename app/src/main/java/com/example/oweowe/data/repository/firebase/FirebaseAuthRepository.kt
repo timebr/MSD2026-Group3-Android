@@ -3,6 +3,7 @@ package com.example.oweowe.data.repository.firebase
 import com.example.oweowe.data.model.User
 import com.example.oweowe.data.repository.AppResult
 import com.example.oweowe.data.repository.AuthRepository
+import com.example.oweowe.domain.normalizePhone
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
@@ -28,11 +29,13 @@ class FirebaseAuthRepository(
         val uid = result.user?.uid ?: error("Firebase returned no user after registration")
 
         // 2. our profile document users/{uid}
+        val trimmedPhone = phone.trim()
         val profile = User(
             uid = uid,
             fullName = fullName.trim(),
             email = mail,
-            phone = phone.trim(),
+            phone = trimmedPhone,
+            phoneNormalized = normalizePhone(trimmedPhone),
             createdAt = System.currentTimeMillis(),
         )
         db.collection("users").document(uid).set(profile).await()

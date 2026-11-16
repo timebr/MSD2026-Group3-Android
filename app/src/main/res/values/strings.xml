@@ -29,6 +29,7 @@
     <string name="error_email_in_use">An account with this email already exists.</string>
     <string name="error_weak_password">The password must be at least 6 characters.</string>
     <string name="error_wrong_credentials">Wrong email or password.</string>
+    <string name="error_reauth_required">Sign in again to change your email.</string>
     <string name="error_no_account_with_email">No account with this email.</string>
     <string name="error_no_account_with_phone">No account with this phone number.</string>
     <string name="error_already_member">That person is already in the group.</string>
