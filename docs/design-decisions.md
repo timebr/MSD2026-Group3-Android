@@ -49,8 +49,9 @@ plan is in the backend plan document; the resulting structure is in
   calculate them.
 - Any signed-in user can read other users' emails, which the member search
   needs.
-- Profile photos and receipts are probably dropped, because Firebase Storage
-  likely requires the Blaze plan (not verified yet).
+- Profile photos and receipts are kept on the device only for now. Firebase
+  Storage likely requires the Blaze plan (not verified yet); cross-device
+  images are a follow-up task.
 
 ## Testing
 

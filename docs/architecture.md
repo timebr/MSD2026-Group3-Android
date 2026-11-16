@@ -17,7 +17,7 @@ same PR as any change to the structure it describes.
 | Cloud DB + offline | Cloud Firestore with offline persistence | Source of truth, offline cache and write queue in one (NFR1–NFR4). |
 | Plan | Firebase Spark (free) | No credit card; no Cloud Functions, FCM or Storage. |
 | Notifications | Local Android notifications from Firestore listeners | FR7, FR8, NFR5 while the app is running. |
-| DI | Hilt (proposal) or manual wiring in `di/` | Switches fake and Firestore repositories in one place. |
+| DI | Manual wiring in `AppContainer.kt` | Picks Firebase when configured, otherwise the in-memory fakes. |
 | Tests | JUnit, kotlinx-coroutines-test, Turbine, Firebase Emulator Suite, Compose UI test | |
 
 Room, a custom outbox table and WorkManager were part of the first draft and
@@ -46,8 +46,9 @@ were dropped: Firestore already provides the offline cache and the retry queue.
                           │ + Security Rules   │
                           └────────────────────┘
 
-NotificationService: listens to expenses, reminders and the sync state of
-own writes and shows local notifications.
+NotificationCoordinator: listens to expenses, reminders and the sync state of
+own writes and posts local notifications (FR7, FR8, NFR5). SyncStatusStore
+turns Firestore metadata and write tasks into PENDING / SYNCED / FAILED.
 ```
 
 ## ViewModel layer
@@ -84,18 +85,24 @@ DKK in whole øre (`Long`).
 
 ```
 users/{uid}                   fullName, email (lower case), phone,
-                              pushEnabled, createdAt
+                              phoneNormalized, photoUri, pushEnabled, createdAt
 groups/{groupId}              name, description, createdBy, createdAt,
                               memberIds[]
   expenses/{expenseId}        type (EXPENSE | SETTLEMENT), description,
                               category, amountOre, paidBy, splitAmong[],
-                              createdBy, createdAt
-  reminders/{reminderId}      from, to, amountOre, createdAt
+                              createdBy, createdAt, updatedBy, updatedAt,
+                              receiptUri
+  reminders/{reminderId}      fromUserId, toUserId, amountOre, createdAt
 ```
 
+Times are epoch milliseconds (UTC); money is whole øre. `phoneNormalized` is
+the digits-only phone (a leading Danish +45 removed) so members can be found
+by phone without depending on formatting. `photoUri` and `receiptUri` are
+device-local paths for now (see the limitation below).
+
 - "My groups" is the query `memberIds array-contains <my uid>`.
-- A member is added by looking up their email in `users`; only registered
-  users can be added.
+- A member is added by looking up their email or normalized phone in
+  `users`; only registered users can be added.
 - Settling up is an expense with `type = SETTLEMENT`: the debtor pays, the
   creditor is the only entry in `splitAmong`, the amount is the open balance.
 - Any group member may edit or delete an expense (purpose, category, amount,
@@ -118,7 +125,7 @@ returned as named results, not thrown.
 | `GroupRepository` | my groups, create, edit details, add / remove member | S4, S7–S10 |
 | `ExpenseRepository` | expenses with sync status, add, edit, delete, settle up | S3, S5, S11 |
 | `ReminderRepository` | send a reminder | S3, S4 |
-| `NotificationService` | local notifications for FR7, FR8, NFR5 | all |
+| `NotificationCoordinator` | local notifications for FR7, FR8, NFR5 | all |
 
 ## Write path (NFR1, NFR2, NFR4, NFR5)
 
@@ -128,11 +135,12 @@ returned as named results, not thrown.
 3. Without a network, Firestore keeps the write in its pending queue and sends
    it automatically when the connection returns, also after an app restart
    (NFR1).
-4. The UI shows each document's state: pending while `hasPendingWrites` is
-   true, synced when it turns false, failed when the write task fails (e.g.
-   rejected by the Security Rules), with a Retry action (NFR4).
-5. When an own document switches from pending to synced, the
-   `NotificationService` shows "Your expense … was synced" (NFR5).
+4. `SyncStatusStore` combines Firestore's `hasPendingWrites` with the write
+   task callbacks: PENDING while queued, SYNCED after acknowledgement, FAILED
+   when the task is rejected (e.g. by Security Rules). Forms show the failure
+   reason; the user can retry the action (NFR4).
+5. When an own document switches from pending (or failed) to synced, the
+   `NotificationCoordinator` posts "… was synced in the background" (NFR5).
 
 ## Read path (NFR3)
 
@@ -142,13 +150,18 @@ returned as named results, not thrown.
 
 ## Notifications (FR7, FR8)
 
-- Each app listens to `expenses` and `reminders` in the user's groups and
-  shows a local notification for new documents created by someone else, or
-  reminders addressed to the user.
-- Only documents newer than the last app start are notified.
-- `pushEnabled = false` suppresses FR7 and FR8 notifications.
-- Limitation: notifications only arrive while the app is running. Push with
-  the app closed would need FCM plus Cloud Functions (Blaze plan).
+- `NotificationCoordinator` listens to `expenses` and `reminders` in the
+  user's groups. `NotificationDecider` compares successive snapshots and
+  produces a notification for a new expense, an expense edited by another
+  member, or a reminder addressed to the user.
+- The first snapshot of each group is only used to seed the known ids, so
+  opening the app does not notify about old data. Own writes are ignored.
+- `pushEnabled = false` suppresses FR7/FR8 notifications and the NFR5 sync
+  notice.
+- Limitation: notifications only arrive while the app process is running.
+  Push with the app closed would need FCM plus Cloud Functions (Blaze plan).
+  Profile photos and receipts are also device-local until Firebase Storage is
+  enabled.
 
 ## Domain
 
@@ -178,6 +191,6 @@ The rules cannot calculate balances, so "remove only with balance 0" and
 | --- | --- | --- |
 | Unit | `SplitCalculator`, `BalanceCalculator`, validation | JVM |
 | ViewModel | Each ViewModel against `Fake…` repositories: UiState for loading, success, pending and error (Turbine) | JVM |
-| Integration | Firestore repositories and Security Rules, seeded with a fixed scenario | Instrumented tests on the Android emulator against the Firebase Emulator Suite (`10.0.2.2`) |
+| Integration | Auth, group, expense, reminder repositories and Security Rules, seeded with a fixed scenario | Instrumented tests on the Android emulator against the Firebase Emulator Suite (`adb reverse tcp:9099 tcp:9099` and `tcp:8080`) |
 | Contract | The same test cases against `Fake…` and `Firestore…` | Both of the above |
 | Manual / demo | Airplane mode on, add an expense, see pending, reconnect, see synced and the notification; second emulator receives the FR7 notification | Two Android emulators against the real Spark project; recorded for the demo video |

@@ -61,15 +61,18 @@ S7–S11 are bottom sheets over the blurred previous screen.
 | S7  | Edit group details (sheet) | Group name, description, Save. |
 | S8  | Group members (sheet) | Member list with Remove, "+ Add member". |
 | S9  | New group (sheet) | Group name, description, Create group. |
-| S10 | Add member (sheet) | Full name, email, Add to group. |
+| S10 | Add member (sheet) | Full name, email or phone, Add to group. |
 | S11 | Add expense (sheet) | Group, purpose, category, amount, Paid by, Split with, Add receipt, Split expense. |
 
-## Open questions
+## Decisions and open questions
 
+- FR7 / FR8 are local notifications from Firestore listeners while the app is
+  running. Real push with the app closed needs FCM plus Cloud Functions and is
+  out of scope for the Spark plan.
+- Only registered users can be added to a group; members are found by email or
+  normalized phone.
+- Amounts are DKK only, stored as whole øre.
+- FR2 email is editable in the profile. The phone field is still read-only in
+  the current UI; whether it should be editable is an open frontend decision.
 - Is the app name final? The wireframe and design document still say
   "App name" / `APP_TITLE`.
-- FR7 / FR8: real push (FCM plus a server or Cloud Function) or in-app
-  notifications from database listeners plus local notifications?
-- Can a member be added who has no account yet (invite by email), or only
-  registered users?
-- Single currency (DKK) only?

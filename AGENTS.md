@@ -45,38 +45,41 @@ them money.
 ## Architecture
 
 ```
-app/src/main/java/dk/sdu/msd/group3/   (package TBD with the first PR)
+app/src/main/java/com/example/oweowe/
   ui/<feature>/   Compose screens + ViewModel per feature (auth, home, groups,
                   activity, profile, expense)
   ui/components/  Shared composables
   ui/navigation/  NavHost, routes, bottom bar
-  domain/         Pure Kotlin: balance/split calculation, validation. No
-                  Android imports.
-  data/local/     Room database, DAOs, entities (source of truth)
-  data/remote/    RemoteDataSource interface + Firebase and Fake implementations
-  data/repo/      Repositories combining local + remote
-  sync/           Outbox, WorkManager workers, sync status
-  notifications/  Notification channels and posting
-  di/             Dependency wiring (one place to swap implementations)
+  domain/         Pure Kotlin: balance/split/phone calculation. No Android imports.
+  data/model/     User, Group, Expense, Reminder and sync-status types.
+  data/repository/          Repository interfaces (the frontend/backend contract).
+  data/repository/fake/     In-memory FakeBackend and repositories.
+  data/repository/firebase/ Firebase Auth + Firestore implementations.
+  data/connectivity/        ConnectivityObserver for the offline banner.
+  sync/           SyncStatusStore: PENDING / SYNCED / FAILED for local writes.
+  notifications/  Local FR7/FR8/NFR5 notifications and the snapshot decider.
+  AppContainer.kt One place that picks Fake… or Firebase… implementations.
 ```
 
-Data flow: Composable → ViewModel (`StateFlow<UiState>`) → Repository →
-Room (read) / Outbox + WorkManager (write) → RemoteDataSource.
+Data flow: Composable → ViewModel (`StateFlow<UiState>`) → repository
+interface → Fake repositories or Firestore (offline cache + built-in write
+queue). The UI only ever observes state from a `Flow`.
 
 - Composables are stateless where possible: they take state and lambdas. Only
   screen-level composables get a ViewModel.
 - Screens never touch a repository, DAO or Firebase directly.
 - ViewModels expose one immutable `UiState` per screen and never hold a
   `Context`.
-- Reads come from Room as `Flow`. Remote data is written into Room and the UI
-  updates from there; the UI never renders a network response directly.
-- Every write goes through the outbox (see below). Never call the remote data
-  source from a ViewModel.
+- Reads are repository `Flow`s backed by Firestore snapshot listeners, which
+  also serve the last cached data offline. The UI never renders a network
+  response directly.
+- Writes go through a repository, which writes to Firestore without waiting
+  for the server; Firestore shows the change locally and syncs it later.
 - Balances and splits are computed only by the functions in `domain/`, so the
   home, groups and activity screens can't disagree (FR5, FR6).
-- The remote implementation is chosen in `di/` only. `FakeRemoteDataSource`
-  (in-memory, with a switch to simulate failures) must keep working so the app
-  and tests run without Firebase.
+- The implementation is chosen in `AppContainer.kt` only. The in-memory
+  Fake… repositories (with delay/error/sync knobs) must keep working so the
+  app and tests run without Firebase.
 
 ## Frontend (UI) workflow
 
@@ -103,21 +106,25 @@ tooling in a feature PR; propose it in a separate `chore/` PR.
 ## Reliability (NFR, graded)
 
 The assignment requires fault tolerance, offline availability and user
-feedback. Every feature that writes data must follow this pattern:
+feedback. Every feature that writes data follows this pattern:
 
-1. Write the change to Room and an `outbox` row with status `PENDING` in one
-   transaction. The UI updates immediately.
-2. Enqueue a unique `WorkManager` job with a `NetworkType.CONNECTED`
-   constraint and exponential backoff. Retries happen in the background.
-3. The worker sends outbox rows in order; on success mark `SYNCED`, on a
-   permanent error mark `FAILED`, on a temporary error return `Result.retry()`.
-4. The UI shows the status of each pending item (pending / synced / failed)
-   and offers Retry on failed ones.
-5. When a request that had failed before succeeds in the background, post a
-   notification (or a snackbar if the app is in the foreground).
-
-Do not rely on Firestore's built-in offline cache as the only mechanism: we
-must be able to show and test the states ourselves.
+1. The repository writes the change to Firestore and returns without waiting
+   for the server. The change is in the local cache and visible immediately
+   (NFR2), including for documents that were never fetched before.
+2. Firestore's persistent cache and pending-write queue keep the write until a
+   connection is available and retry it automatically, also after a restart
+   (NFR1).
+3. `sync/SyncStatusStore` maps Firestore metadata and write tasks to
+   `PENDING` / `SYNCED` / `FAILED`. The UI shows that state next to rows and
+   on forms, with a visible error reason (NFR4).
+4. When a write that was pending or failed succeeds in the background,
+   `NotificationCoordinator` posts a local notification (NFR5).
+5. The Fake… repositories keep a switchable delay/failure/sync simulation so
+   pending, failed and synced states can be demonstrated and unit-tested
+   without Firebase.
+6. Notifications are local and only work while the app process is alive; real
+   push when the app is closed would need FCM plus Cloud Functions (Spark plan
+   has neither). This limitation is documented in the architecture doc.
 
 ## Conventions
 
@@ -130,11 +137,12 @@ must be able to show and test the states ourselves.
 - All user-facing text in `res/values/strings.xml`. App language: English.
 - IDs are `String` UUIDs generated on the device, so offline-created objects
   have stable IDs before they sync.
-- Times are `Instant` in UTC in data and domain; convert in the UI.
+- Times are epoch milliseconds (UTC) in data and domain; convert in the UI.
 - Coroutines: use `viewModelScope`, inject dispatchers, never `GlobalScope`
   or `runBlocking` in app code.
 - Unit tests in `app/src/test` (JUnit, kotlinx-coroutines-test, Turbine for
-  flows); Room and Compose UI tests in `app/src/androidTest`.
+  flows); Firebase Emulator integration and Compose UI tests in
+  `app/src/androidTest`.
 
 ## Commands
 
@@ -143,6 +151,8 @@ must be able to show and test the states ourselves.
 ./gradlew lint                       # Android lint
 ./gradlew testDebugUnitTest          # unit tests (domain, ViewModels, sync)
 ./gradlew connectedDebugAndroidTest  # instrumented tests (needs emulator)
+# Firebase Emulator Suite: firebase emulators:start --project demo-oweowe
+# then adb reverse tcp:9099 tcp:9099 && adb reverse tcp:8080 tcp:8080
 ```
 
 Run lint and unit tests before pushing. If you can't run a command (no SDK,
