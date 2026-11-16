@@ -5,6 +5,10 @@
     <!-- S8 / S10: suggest group members from the device contacts. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
 
+    <!-- Offline banner (NFR3) and local activity notifications (FR7, FR8, NFR5). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- FR10: the camera app is asked to take the receipt photo (Android 11+
          package visibility, so the app can tell whether one is installed). -->
     <queries>

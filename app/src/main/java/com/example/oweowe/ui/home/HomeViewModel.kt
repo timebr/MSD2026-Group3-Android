@@ -71,6 +71,12 @@ class HomeViewModel(
     private val reminderRepository: ReminderRepository,
     connectivity: ConnectivityObserver,
     selectedGroupStore: SelectedGroupStore,
+    /**
+     * With Firebase the app-level NotificationCoordinator owns NFR5 for every
+     * group. The snackbar remains for the fake backend, where that store is not
+     * used.
+     */
+    private val backgroundSyncSnackbars: Boolean = true,
 ) : ViewModel() {
 
     private val reminderBusy = MutableStateFlow(false)
@@ -105,7 +111,7 @@ class HomeViewModel(
     // Must come after currentGroup / _messages: `launch` on Main.immediate can
     // start the collector before the constructor returns.
     init {
-        watchBackgroundSync()
+        if (backgroundSyncSnackbars) watchBackgroundSync()
     }
 
     val uiState: StateFlow<HomeUiState> = combine(
@@ -242,6 +248,7 @@ class HomeViewModel(
                         reminderRepository = container.reminderRepository,
                         connectivity = container.connectivityObserver,
                         selectedGroupStore = container.selectedGroupStore,
+                        backgroundSyncSnackbars = !container.useFirebase,
                     )
                 }
             }

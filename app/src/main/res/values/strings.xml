@@ -220,8 +220,17 @@
     <string name="cd_change_profile_photo">Change profile photo</string>
 
     <!-- Settings: activity notifications (FR2, FR7, FR8) -->
+    <string name="common_someone">Someone</string>
     <string name="notification_settings_push">Activity notifications</string>
     <string name="notification_settings_push_hint">New expenses, new members and changes in your groups, plus reminders sent to you.</string>
+    <string name="notification_channel_name">Group activity</string>
+    <string name="notification_new_expense_title">New expense in %1$s</string>
+    <string name="notification_new_expense_body">%1$s added %2$s (%3$s)</string>
+    <string name="notification_expense_updated_title">Expense updated in %1$s</string>
+    <string name="notification_expense_updated_body">%1$s changed %2$s (%3$s)</string>
+    <string name="notification_reminder_title">Reminder from %1$s</string>
+    <string name="notification_reminder_body">%1$s in %2$s</string>
+    <string name="notification_synced_title">Synced</string>
 
     <!-- Settings: contacts access (FR3) -->
     <string name="settings_contacts_access">Contacts access</string>
