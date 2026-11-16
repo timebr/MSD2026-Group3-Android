@@ -44,7 +44,7 @@ fun SyncStatusChip(status: SyncStatus, modifier: Modifier = Modifier) {
             SyncStatus.SYNCED -> MaterialTheme.colorScheme.onSurfaceVariant
             SyncStatus.FAILED -> MaterialTheme.colorScheme.onErrorContainer
         },
-        modifier = modifier.semantics { contentDescription = "" },
+        modifier = modifier.semantics { contentDescription = label },
     ) {
         androidx.compose.foundation.layout.Row(
             verticalAlignment = Alignment.CenterVertically,

@@ -66,6 +66,7 @@ fun AuthScreen(container: AppContainer) {
         onRegisterPasswordChange = viewModel::updateRegisterPassword,
         onRegisterPhoneChange = viewModel::updateRegisterPhone,
         onRegister = viewModel::register,
+        showDemoHint = !container.useFirebase,
     )
 }
 
@@ -83,6 +84,7 @@ private fun AuthContent(
     onRegisterPasswordChange: (String) -> Unit,
     onRegisterPhoneChange: (String) -> Unit,
     onRegister: () -> Unit,
+    showDemoHint: Boolean = true,
 ) {
     Column(
         verticalArrangement = Arrangement.Center,
@@ -126,6 +128,7 @@ private fun AuthContent(
                 onEmailChange = onSignInEmailChange,
                 onPasswordChange = onSignInPasswordChange,
                 onSignIn = onSignIn,
+                showDemoHint = showDemoHint,
             )
         } else {
             RegisterForm(
@@ -146,6 +149,7 @@ private fun SignInForm(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onSignIn: () -> Unit,
+    showDemoHint: Boolean = true,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         OutlinedTextField(
@@ -200,13 +204,15 @@ private fun SignInForm(
                 Text(stringResource(R.string.sign_in_button))
             }
         }
-        Spacer(Modifier.height(24.dp))
-        Text(
-            text = stringResource(R.string.sign_in_demo_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
+        if (showDemoHint) {
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = stringResource(R.string.sign_in_demo_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 

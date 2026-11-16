@@ -61,6 +61,7 @@ import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.canTakePhoto
 import com.example.oweowe.ui.components.copyReceiptToAppStorage
 import com.example.oweowe.ui.components.displayName
+import com.example.oweowe.ui.components.errorReasonMessage
 import com.example.oweowe.ui.components.rememberCameraCapture
 import com.example.oweowe.ui.components.rememberImageBitmap
 import com.example.oweowe.ui.components.rememberImagePicker
@@ -333,6 +334,16 @@ fun AddExpenseContent(
                         text = stringResource(R.string.add_expense_receipt_saved_note),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (state.writeState is WriteState.Failed) {
+                    Text(
+                        text = errorReasonMessage(state.writeState.reason),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp),
                     )
                 }
                 SubmitButton(
