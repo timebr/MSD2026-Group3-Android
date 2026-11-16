@@ -2,11 +2,14 @@ package com.example.oweowe.ui.groups
 
 import com.example.oweowe.data.connectivity.AlwaysOfflineObserver
 import com.example.oweowe.data.connectivity.AlwaysOnlineObserver
-import com.example.oweowe.data.repository.AppResult
+import com.example.oweowe.data.connectivity.ConnectivityObserver
 import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.data.repository.fake.FakeBackend
+import com.example.oweowe.data.repository.fake.FakeExpenseRepository
 import com.example.oweowe.data.repository.fake.FakeGroupRepository
+import com.example.oweowe.data.repository.fake.FakeUserRepository
 import com.example.oweowe.data.repository.fake.SeedData
+import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.MainDispatcherRule
 import com.example.oweowe.ui.components.WriteState
 import kotlinx.coroutines.CoroutineScope
@@ -29,32 +32,67 @@ class GroupsViewModelTest {
     private fun backend(scope: CoroutineScope) =
         FakeBackend(startSignedInAs = SeedData.TIM, scope = scope).apply { delayMs = 0 }
 
+    private fun viewModel(db: FakeBackend, observer: ConnectivityObserver) = GroupsViewModel(
+        groupRepository = FakeGroupRepository(db),
+        userRepository = FakeUserRepository(db),
+        expenseRepository = FakeExpenseRepository(db),
+        connectivity = observer,
+    )
+
     @Test
-    fun uiState_listsMyGroupsFromTheRepository() = runTest {
+    fun uiState_listsMyGroupsWithMyNetBalanceFromTheDomainCalculator() = runTest {
         val db = backend(backgroundScope)
-        val viewModel = GroupsViewModel(FakeGroupRepository(db), AlwaysOnlineObserver)
+        val viewModel = viewModel(db, AlwaysOnlineObserver)
 
         val state = viewModel.uiState.first { !it.loading }
 
         assertEquals(false, state.offline)
-        assertEquals(listOf(SeedData.FLAT), state.groups.map { it.id })
+        assertEquals(listOf(SeedData.FLAT), state.groups.map { it.group.id })
+        val expected = BalanceCalculator.balances(db.expenses.value.filter { it.groupId == SeedData.FLAT })[SeedData.TIM]
+        assertEquals(expected, state.groups.single().myNetOre)
     }
 
     @Test
     fun uiState_flagsOfflineButStillShowsCachedGroups() = runTest {
         val db = backend(backgroundScope)
-        val viewModel = GroupsViewModel(FakeGroupRepository(db), AlwaysOfflineObserver)
+        val viewModel = viewModel(db, AlwaysOfflineObserver)
 
         val state = viewModel.uiState.first { !it.loading }
 
         assertEquals(true, state.offline)                       // banner shows, but data stays (NFR3)
-        assertEquals(listOf(SeedData.FLAT), state.groups.map { it.id })
+        assertEquals(listOf(SeedData.FLAT), state.groups.map { it.group.id })
+    }
+
+    @Test
+    fun uiState_selectGroupMakesTheChosenGroupSelected() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db, AlwaysOnlineObserver)
+        val createdIds = mutableListOf<String>()
+        val collector = launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.createdGroupId.toList(createdIds)
+        }
+
+        viewModel.updateName("Holiday")
+        viewModel.createGroup()
+        advanceUntilIdle()
+        collector.cancel()
+        val newId = createdIds.single()
+
+        // Default selection is the group with the most recent activity (the new one).
+        val initial = viewModel.uiState.first { it.groups.size == 2 }
+        assertEquals(newId, initial.selectedGroup?.group?.id)
+
+        // Picking a group makes it the selected one; all groups stay listed.
+        viewModel.selectGroup(SeedData.FLAT)
+        val state = viewModel.uiState.first { it.selectedGroup?.group?.id == SeedData.FLAT }
+        assertEquals(SeedData.FLAT, state.selectedGroup?.group?.id)
+        assertEquals(2, state.groups.size)
     }
 
     @Test
     fun createGroup_blankName_marksTheFieldInsteadOfSubmitting() = runTest {
         val db = backend(backgroundScope)
-        val viewModel = GroupsViewModel(FakeGroupRepository(db), AlwaysOnlineObserver)
+        val viewModel = viewModel(db, AlwaysOnlineObserver)
 
         viewModel.updateDescription("No name given")
         viewModel.createGroup()
@@ -66,7 +104,7 @@ class GroupsViewModelTest {
     @Test
     fun createGroup_success_emitsTheNewGroupIdAndCreatesTheGroup() = runTest {
         val db = backend(backgroundScope)
-        val viewModel = GroupsViewModel(FakeGroupRepository(db), AlwaysOnlineObserver)
+        val viewModel = viewModel(db, AlwaysOnlineObserver)
         val createdIds = mutableListOf<String>()
         val collector = launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.createdGroupId.toList(createdIds)
@@ -89,7 +127,7 @@ class GroupsViewModelTest {
     fun createGroup_networkFailure_showsFailedStateForRetry() = runTest {
         val db = backend(backgroundScope)
         db.failNextWith = ErrorReason.NETWORK
-        val viewModel = GroupsViewModel(FakeGroupRepository(db), AlwaysOnlineObserver)
+        val viewModel = viewModel(db, AlwaysOnlineObserver)
 
         viewModel.updateName("Holiday")
         viewModel.createGroup()

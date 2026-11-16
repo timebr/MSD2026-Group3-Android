@@ -11,6 +11,7 @@ import com.example.oweowe.data.connectivity.ConnectivityObserver
 import com.example.oweowe.data.model.User
 import com.example.oweowe.data.repository.AppResult
 import com.example.oweowe.data.repository.AuthRepository
+import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.ui.components.UiMessage
 import com.example.oweowe.ui.components.WriteState
@@ -40,8 +41,12 @@ data class ProfileUiState(
 /** Edit-profile form (S6 / Edit profile screen). */
 data class EditProfileUiState(
     val fullName: String = "",
+    val email: String = "",
     val phone: String = "",
+    /** FR2: the photo already saved with the profile, or null for initials. */
+    val photoUri: String? = null,
     val nameInvalid: Boolean = false,
+    val emailInvalid: Boolean = false,
     val writeState: WriteState = WriteState.Idle,
     val loadedFromMe: Boolean = false,
 )
@@ -78,7 +83,17 @@ class ProfileViewModel(
         viewModelScope.launch {
             val me = userRepository.observeMe().filterNotNull().first()
             _editState.update {
-                if (it.loadedFromMe) it else it.copy(fullName = me.fullName, phone = me.phone, loadedFromMe = true)
+                if (it.loadedFromMe) {
+                    it
+                } else {
+                    it.copy(
+                        fullName = me.fullName,
+                        email = me.email,
+                        phone = me.phone,
+                        photoUri = me.photoUri,
+                        loadedFromMe = true,
+                    )
+                }
             }
         }
     }
@@ -88,19 +103,32 @@ class ProfileViewModel(
     fun updateFullName(name: String) =
         _editState.update { it.copy(fullName = name, nameInvalid = false, writeState = WriteState.Idle) }
 
-    fun updatePhone(phone: String) =
-        _editState.update { it.copy(phone = phone, writeState = WriteState.Idle) }
+    fun updateEmail(email: String) =
+        _editState.update { it.copy(email = email, emailInvalid = false, writeState = WriteState.Idle) }
 
-    fun saveProfile() {
+    /**
+     * FR2: saves the profile. [photoPath] is the already-copied photo (the
+     * screen copies the picked Uri before calling this); null keeps the
+     * photo that is already saved.
+     */
+    fun saveProfile(photoPath: String? = null) {
         val state = _editState.value
         if (state.writeState == WriteState.Busy) return
-        if (state.fullName.isBlank()) {
-            _editState.update { it.copy(nameInvalid = true) }
+        // Same rule the fake backend applies, so an obviously wrong address
+        // is caught before the write instead of coming back as an error.
+        val emailInvalid = !state.email.trim().contains("@")
+        if (state.fullName.isBlank() || emailInvalid) {
+            _editState.update { it.copy(nameInvalid = state.fullName.isBlank(), emailInvalid = emailInvalid) }
             return
         }
         _editState.update { it.copy(writeState = WriteState.Busy) }
         viewModelScope.launch {
-            when (val result = userRepository.updateProfile(state.fullName.trim(), state.phone.trim())) {
+            val result = userRepository.updateProfile(
+                fullName = state.fullName.trim(),
+                email = state.email.trim(),
+                photoUri = photoPath,
+            )
+            when (result) {
                 is AppResult.Success -> {
                     _editState.update { it.copy(writeState = WriteState.Done) }
                     _messages.emit(UiMessage(R.string.edit_profile_saved))
@@ -110,6 +138,14 @@ class ProfileViewModel(
             }
         }
     }
+
+    /**
+     * FR2: the picked photo could not be copied into app storage. Saving the
+     * name without the photo would silently drop the user's choice, so the
+     * save fails instead and the form offers Retry.
+     */
+    fun onPhotoSaveFailed() =
+        _editState.update { it.copy(writeState = WriteState.Failed(ErrorReason.UNKNOWN)) }
 
     fun resetWriteState() = _editState.update { it.copy(writeState = WriteState.Idle) }
 

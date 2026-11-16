@@ -1,6 +1,7 @@
 package com.example.oweowe.ui.home
 
 import com.example.oweowe.R
+import com.example.oweowe.SelectedGroupStore
 import com.example.oweowe.data.connectivity.AlwaysOnlineObserver
 import com.example.oweowe.data.model.SyncStatus
 import com.example.oweowe.data.repository.AppResult
@@ -34,13 +35,14 @@ class HomeViewModelTest {
     private fun backend(scope: CoroutineScope) =
         FakeBackend(startSignedInAs = SeedData.TIM, scope = scope).apply { delayMs = 0 }
 
-    private fun viewModel(db: FakeBackend) = HomeViewModel(
+    private fun viewModel(db: FakeBackend, selectedGroupStore: SelectedGroupStore = SelectedGroupStore()) = HomeViewModel(
         authRepository = FakeAuthRepository(db),
         userRepository = FakeUserRepository(db),
         groupRepository = FakeGroupRepository(db),
         expenseRepository = FakeExpenseRepository(db),
         reminderRepository = FakeReminderRepository(db),
         connectivity = AlwaysOnlineObserver,
+        selectedGroupStore = selectedGroupStore,
     )
 
     @Test
@@ -61,6 +63,24 @@ class HomeViewModelTest {
         expected.forEach { (uid, balance) ->
             assertEquals(balance, state.memberBalances.first { it.user.uid == uid }.balanceOre)
         }
+    }
+
+    @Test
+    fun uiState_showsTheGroupWithTheMostRecentActivity() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db)
+        viewModel.uiState.first { !it.loading }
+
+        val secondId = (FakeGroupRepository(db).createGroup("Ski trip", "") as AppResult.Success).value
+        val result = FakeExpenseRepository(db).addExpense(
+            groupId = secondId, description = "Lift pass", category = "Travel",
+            amountOre = 5_000, paidBy = SeedData.TIM, splitAmong = listOf(SeedData.TIM),
+        )
+        assertEquals(AppResult.Success(Unit), result)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.first { it.group?.id == secondId }
+        assertEquals(secondId, state.group?.id)
     }
 
     @Test

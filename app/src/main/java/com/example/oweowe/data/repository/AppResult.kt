@@ -13,6 +13,7 @@ enum class ErrorReason {
     WRONG_CREDENTIALS,
     // Groups and members
     NO_ACCOUNT_WITH_EMAIL,
+    NO_ACCOUNT_WITH_PHONE,
     ALREADY_MEMBER,
     BALANCE_NOT_ZERO,
     // Expenses

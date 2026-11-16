@@ -44,9 +44,33 @@ class FakeGroupRepository(private val db: FakeBackend) : GroupRepository {
         if (!db.isMember(groupId, db.currentUserId.value)) return AppResult.Error(ErrorReason.NOT_ALLOWED)
         val user = db.users.value.find { it.email == email.trim().lowercase() }
             ?: return AppResult.Error(ErrorReason.NO_ACCOUNT_WITH_EMAIL)
+        return addMember(groupId, user)
+    }
+
+    override suspend fun addMemberByPhone(groupId: String, phone: String): AppResult<User> {
+        db.simulateCall()?.let { return AppResult.Error(it) }
+        if (!db.isMember(groupId, db.currentUserId.value)) return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        val normalized = normalizePhone(phone)
+        val user = normalized.takeIf { it.isNotEmpty() }?.let { digits ->
+            db.users.value.find { normalizePhone(it.phone) == digits }
+        } ?: return AppResult.Error(ErrorReason.NO_ACCOUNT_WITH_PHONE)
+        return addMember(groupId, user)
+    }
+
+    private fun addMember(groupId: String, user: User): AppResult<User> {
         if (db.isMember(groupId, user.uid)) return AppResult.Error(ErrorReason.ALREADY_MEMBER)
         changeGroup(groupId) { it.copy(memberIds = it.memberIds + user.uid) }
         return AppResult.Success(user)
+    }
+
+    /**
+     * Fake-only comparison rule: digits only, ignoring a leading Danish country
+     * code, so "+45 22 22 22 22" and "22222222" find the same profile. The real
+     * backend will define the canonical form and match on it.
+     */
+    private fun normalizePhone(phone: String): String {
+        val digits = phone.filter(Char::isDigit)
+        return if (digits.length > 8 && digits.startsWith("45")) digits.drop(2) else digits
     }
 
     override suspend fun removeMember(groupId: String, userId: String): AppResult<Unit> {

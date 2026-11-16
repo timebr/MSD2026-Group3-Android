@@ -29,8 +29,13 @@ class AddExpenseViewModelTest {
     private fun backend(scope: CoroutineScope) =
         FakeBackend(startSignedInAs = SeedData.TIM, scope = scope).apply { delayMs = 0 }
 
-    private fun viewModel(db: FakeBackend, initialGroupId: String? = null) = AddExpenseViewModel(
+    private fun viewModel(
+        db: FakeBackend,
+        initialGroupId: String? = null,
+        expenseId: String? = null,
+    ) = AddExpenseViewModel(
         initialGroupId = initialGroupId,
+        expenseId = expenseId,
         expenseRepository = FakeExpenseRepository(db),
         userRepository = FakeUserRepository(db),
         groupRepository = FakeGroupRepository(db),
@@ -84,6 +89,35 @@ class AddExpenseViewModelTest {
     }
 
     @Test
+    fun submit_blankPurpose_marksTheFieldInsteadOfSubmitting() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db)
+        viewModel.warmUp()
+        val expensesBefore = db.expenses.value.size
+
+        viewModel.updateAmount("16")            // no purpose given
+        viewModel.submit()
+
+        assertEquals(true, viewModel.uiState.value.descriptionInvalid)
+        assertEquals(WriteState.Idle, viewModel.uiState.value.writeState)
+        assertEquals(expensesBefore, db.expenses.value.size)
+    }
+
+    @Test
+    fun submit_withoutCategory_stillSaves() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db)
+        viewModel.warmUp()
+
+        viewModel.updateDescription("Dinner")   // the category stays optional
+        viewModel.updateAmount("16")
+        viewModel.submit()
+
+        assertEquals(WriteState.Done, viewModel.uiState.value.writeState)
+        assertEquals("", db.expenses.value.last().category)
+    }
+
+    @Test
     fun submit_valid_addsPendingExpenseInOreWhichThenSyncs() = runTest {
         val db = backend(backgroundScope)
         val viewModel = viewModel(db)
@@ -125,5 +159,53 @@ class AddExpenseViewModelTest {
         )
         assertEquals(expensesBefore, db.expenses.value.size)
         assertTrue(db.expenses.value.none { it.description == "Dinner" })
+    }
+
+    // ---- editing an existing expense (any group member) ----
+
+    @Test
+    fun edit_prefillsTheStoredExpense() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db, initialGroupId = SeedData.FLAT, expenseId = "e2")
+
+        val state = viewModel.uiState.first { !it.loading }
+
+        assertEquals("Pizza night", state.description)
+        assertEquals("Food", state.category)
+        assertEquals("450,00", state.amountText)
+        assertEquals(SeedData.ANNA, state.payerId)
+        assertEquals(setOf(SeedData.TIM, SeedData.ANNA, SeedData.JONAS), state.splitAmong)
+        assertEquals(listOf(SeedData.FLAT), state.groups.map { it.id })
+        assertEquals(false, state.expenseNotFound)
+    }
+
+    @Test
+    fun edit_savesChangesAsAnyMemberAndKeepsTheCreator() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db, SeedData.FLAT, "e2")   // created by Anna
+        viewModel.warmUp()
+
+        viewModel.updateDescription("Pizza and drinks")
+        viewModel.updateAmount("50")
+        viewModel.submit()
+
+        assertEquals(WriteState.Done, viewModel.uiState.value.writeState)
+        val edited = db.expenses.value.first { it.id == "e2" }
+        assertEquals("Pizza and drinks", edited.description)
+        assertEquals(5_000L, edited.amountOre)
+        assertEquals(SeedData.ANNA, edited.createdBy)
+        assertEquals(SyncStatus.PENDING, edited.syncStatus)    // NFR4
+        advanceUntilIdle()
+        assertEquals(SyncStatus.SYNCED, db.expenses.value.first { it.id == "e2" }.syncStatus)
+    }
+
+    @Test
+    fun edit_unknownExpense_showsNotFoundInsteadOfAnEmptyForm() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(db, SeedData.FLAT, "missing")
+
+        val state = viewModel.uiState.first { !it.loading }
+
+        assertTrue(state.expenseNotFound)
     }
 }

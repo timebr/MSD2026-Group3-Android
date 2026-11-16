@@ -30,7 +30,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.model.Expense
-import com.example.oweowe.data.model.ExpenseType
 import com.example.oweowe.data.model.SyncStatus
 import com.example.oweowe.data.model.User
 import com.example.oweowe.domain.formatKr
@@ -39,8 +38,7 @@ import com.example.oweowe.ui.components.EmptyState
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.MyBalanceText
 import com.example.oweowe.ui.components.OfflineBanner
-import com.example.oweowe.ui.components.SignedAmount
-import com.example.oweowe.ui.components.SyncStatusChip
+import com.example.oweowe.ui.components.TransactionRow
 
 /** S5 Activity (FR5, FR6, FR7). */
 @Composable
@@ -137,56 +135,16 @@ private fun ActivityList(state: ActivityUiState) {
             )
         }
         items(state.transactions, key = { it.expense.id }) { transaction ->
-            TransactionRow(transaction)
+            TransactionRow(
+                expense = transaction.expense,
+                payerName = transaction.payerName,
+                groupName = transaction.groupName,
+                payeeName = transaction.payeeName,
+            )
         }
         item { Spacer(Modifier.height(16.dp)) }
     }
 }
-
-@Composable
-private fun TransactionRow(transaction: ActivityTransaction) {
-    val expense = transaction.expense
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = 12.dp),
-        ) {
-            Text(
-                text = transactionTitle(expense),
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                text = stringResource(
-                    R.string.activity_transaction_subtitle,
-                    transaction.payerName,
-                    transaction.groupName,
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (expense.syncStatus != SyncStatus.SYNCED) {
-                SyncStatusChip(
-                    status = expense.syncStatus,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-        }
-        SignedAmount(ore = expense.amountOre)
-    }
-}
-
-@Composable
-private fun transactionTitle(expense: Expense): String =
-    when {
-        expense.type == ExpenseType.SETTLEMENT -> stringResource(R.string.activity_settlement)
-        expense.description.isNotBlank() -> expense.description
-        expense.category.isNotBlank() -> expense.category
-        else -> stringResource(R.string.activity_expense_fallback)
-    }
 
 @Preview(showBackground = true, name = "Activity")
 @Composable
@@ -207,6 +165,7 @@ private fun ActivityPreview() {
                         ),
                         groupName = "Flat 4B",
                         payerName = "Tim Test",
+                        payeeName = "",
                     ),
                     ActivityTransaction(
                         expense = Expense(
@@ -216,6 +175,7 @@ private fun ActivityPreview() {
                         ),
                         groupName = "Flat 4B",
                         payerName = "Anna Test",
+                        payeeName = "",
                     ),
                 ),
             ),

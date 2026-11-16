@@ -1,15 +1,12 @@
 package com.example.oweowe.ui.groups
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,20 +20,22 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.repository.ErrorReason
-import com.example.oweowe.ui.components.AppTopBar
+import com.example.oweowe.ui.components.AppBottomSheet
+import com.example.oweowe.ui.components.SheetHeader
 import com.example.oweowe.ui.components.SubmitButton
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonMessage
+import com.example.oweowe.ui.components.appTextFieldColors
 
-/** S7 Edit group details (FR3). Saving shows the pending state; Done closes the screen. */
+/** S7 Edit group details (FR3) as a bottom sheet; Done dismisses it. */
 @Composable
-fun EditGroupScreen(
+fun EditGroupSheet(
     container: AppContainer,
     groupId: String,
-    onBack: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     val viewModel: GroupDetailsViewModel = viewModel(
-        key = "group-details-$groupId",
+        key = "edit-group-$groupId",
         factory = GroupDetailsViewModel.factory(container, groupId),
     )
     val state by viewModel.editState.collectAsStateWithLifecycle()
@@ -44,23 +43,17 @@ fun EditGroupScreen(
     LaunchedEffect(state.writeState) {
         if (state.writeState == WriteState.Done) {
             viewModel.resetWriteState()
-            onBack()
+            onDismiss()
         }
     }
 
-    Scaffold(topBar = {
-        AppTopBar(
-            title = stringResource(R.string.edit_group_title),
-            showBack = true,
-            onBack = onBack,
-        )
-    }) { padding ->
+    AppBottomSheet(onDismiss = onDismiss) {
+        SheetHeader(stringResource(R.string.edit_group_title))
         EditGroupContent(
             state = state,
             onNameChange = viewModel::updateEditName,
             onDescriptionChange = viewModel::updateEditDescription,
             onSave = viewModel::saveGroupDetails,
-            modifier = Modifier.padding(padding),
         )
     }
 }
@@ -74,11 +67,10 @@ fun EditGroupContent(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        verticalArrangement = Arrangement.Center,
         modifier = modifier
-            .fillMaxSize()
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
     ) {
         OutlinedTextField(
             value = state.name,
@@ -86,12 +78,16 @@ fun EditGroupContent(
             label = { Text(stringResource(R.string.edit_group_name_label)) },
             isError = state.nameInvalid,
             singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(
             value = state.description,
             onValueChange = onDescriptionChange,
             label = { Text(stringResource(R.string.edit_group_description_label)) },
+            shape = MaterialTheme.shapes.medium,
+            colors = appTextFieldColors(),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),

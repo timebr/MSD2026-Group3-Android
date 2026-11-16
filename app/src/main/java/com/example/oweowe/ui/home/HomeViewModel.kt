@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.oweowe.AppContainer
 import com.example.oweowe.R
+import com.example.oweowe.SelectedGroupStore
 import com.example.oweowe.data.connectivity.ConnectivityObserver
 import com.example.oweowe.data.model.Expense
 import com.example.oweowe.data.model.Group
@@ -22,6 +23,7 @@ import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.components.UiMessage
 import com.example.oweowe.ui.components.errorReasonRes
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -31,6 +33,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -40,6 +43,8 @@ data class MemberBalance(
     val balanceOre: Long,
     /** > 0 when this member owes the signed-in user money (Remind button shows, FR8). */
     val owesMeOre: Long,
+    /** > 0 when the signed-in user owes this member money (FR5, FR6). */
+    val iOweOre: Long = 0,
 )
 
 data class HomeUiState(
@@ -65,6 +70,7 @@ class HomeViewModel(
     private val expenseRepository: ExpenseRepository,
     private val reminderRepository: ReminderRepository,
     connectivity: ConnectivityObserver,
+    selectedGroupStore: SelectedGroupStore,
 ) : ViewModel() {
 
     private val reminderBusy = MutableStateFlow(false)
@@ -72,11 +78,29 @@ class HomeViewModel(
     private val _messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 8)
     val messages: SharedFlow<UiMessage> = _messages.asSharedFlow()
 
-    /** The group Home currently shows; the first of "my groups" for now. */
-    private val currentGroup = combine(
-        authRepository.currentUserId,
-        groupRepository.observeMyGroups(),
-    ) { _, groups -> groups.firstOrNull() }
+    /** The group the S3 card shows: the user's selection from S4, or the most recent activity. */
+    private val currentGroup: Flow<Group?> =
+        combine(groupRepository.observeMyGroups(), selectedGroupStore.selectedGroupId) { groups, selectedId ->
+            groups to selectedId
+        }.flatMapLatest { (groups, selectedId) ->
+            if (groups.isEmpty()) {
+                flowOf(null)
+            } else {
+                val selected = selectedId?.let { id -> groups.find { it.id == id } }
+                if (selected != null) {
+                    flowOf(selected)
+                } else {
+                    combine(groups.map { group -> lastActivity(group) }) { scored: Array<Pair<Group, Long>> ->
+                        scored.maxByOrNull { it.second }?.first
+                    }
+                }
+            }
+        }
+
+    private fun lastActivity(group: Group): Flow<Pair<Group, Long>> =
+        expenseRepository.observeExpenses(group.id).map { expenses ->
+            group to (expenses.maxOfOrNull { it.createdAt } ?: 0L).coerceAtLeast(group.createdAt)
+        }
 
     // Must come after currentGroup / _messages: `launch` on Main.immediate can
     // start the collector before the constructor returns.
@@ -86,12 +110,12 @@ class HomeViewModel(
 
     val uiState: StateFlow<HomeUiState> = combine(
         userRepository.observeMe(),
-        groupRepository.observeMyGroups(),
+        currentGroup,
         connectivity.isOnline,
         reminderBusy,
-    ) { me, groups, online, busy -> HomeInputs(me, groups, online, busy) }
+    ) { me, group, online, busy -> HomeInputs(me, group, online, busy) }
         .flatMapLatest { inputs ->
-            val group = inputs.groups.firstOrNull()
+            val group = inputs.group
             if (group == null) {
                 flowOf(HomeUiState(loading = false, offline = !inputs.online, me = inputs.me, reminderBusy = inputs.busy))
             } else {
@@ -120,6 +144,7 @@ class HomeViewModel(
                     user = user,
                     balanceOre = balances[user.uid] ?: 0,
                     owesMeOre = BalanceCalculator.amountOwed(expenses, from = user.uid, to = meId),
+                    iOweOre = BalanceCalculator.amountOwed(expenses, from = meId, to = user.uid),
                 )
             }
         return HomeUiState(
@@ -144,6 +169,24 @@ class HomeViewModel(
             val message = when (result) {
                 is AppResult.Success ->
                     UiMessage(R.string.home_reminder_sent, listOf(member.user.fullName))
+                is AppResult.Error ->
+                    UiMessage(errorReasonRes(result.reason))
+            }
+            _messages.emit(message)
+        }
+    }
+
+    /** FR5: record a settlement with a member the signed-in user owes. */
+    fun settleUp(member: MemberBalance) {
+        if (reminderBusy.value) return
+        val group = uiState.value.group ?: return
+        reminderBusy.value = true
+        viewModelScope.launch {
+            val result = expenseRepository.settleUp(group.id, member.user.uid)
+            reminderBusy.value = false
+            val message = when (result) {
+                is AppResult.Success ->
+                    UiMessage(R.string.settle_up_done, listOf(member.user.fullName))
                 is AppResult.Error ->
                     UiMessage(errorReasonRes(result.reason))
             }
@@ -182,7 +225,7 @@ class HomeViewModel(
 
     private data class HomeInputs(
         val me: User?,
-        val groups: List<Group>,
+        val group: Group?,
         val online: Boolean,
         val busy: Boolean,
     )
@@ -198,6 +241,7 @@ class HomeViewModel(
                         expenseRepository = container.expenseRepository,
                         reminderRepository = container.reminderRepository,
                         connectivity = container.connectivityObserver,
+                        selectedGroupStore = container.selectedGroupStore,
                     )
                 }
             }

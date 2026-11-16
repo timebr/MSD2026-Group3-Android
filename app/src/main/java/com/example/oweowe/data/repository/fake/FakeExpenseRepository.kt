@@ -23,6 +23,7 @@ class FakeExpenseRepository(private val db: FakeBackend) : ExpenseRepository {
     override suspend fun addExpense(
         groupId: String, description: String, category: String,
         amountOre: Long, paidBy: String, splitAmong: List<String>,
+        receiptUri: String?,
     ): AppResult<Unit> {
         db.simulateCall()?.let { return AppResult.Error(it) }
         val me = db.currentUserId.value ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
@@ -36,18 +37,58 @@ class FakeExpenseRepository(private val db: FakeBackend) : ExpenseRepository {
             description = description.trim(), category = category, amountOre = amountOre,
             paidBy = paidBy, splitAmong = splitAmong.distinct(),
             createdBy = me, createdAt = db.now(), syncStatus = SyncStatus.PENDING,
+            receiptUri = receiptUri,
         )
         db.expenses.update { it + expense }
         markSyncedLater(expense.id)
         return AppResult.Success(Unit)
     }
 
+    override suspend fun updateExpense(
+        groupId: String, expenseId: String, description: String, category: String,
+        amountOre: Long, paidBy: String, splitAmong: List<String>, receiptUri: String?,
+    ): AppResult<Unit> {
+        db.simulateCall()?.let { return AppResult.Error(it) }
+        val me = db.currentUserId.value ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        // Any member may edit; only the group boundary and the expense type are checked.
+        if (!db.isMember(groupId, me)) return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        val existing = db.expenses.value.find { it.id == expenseId && it.groupId == groupId }
+            ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        if (existing.type != ExpenseType.EXPENSE) return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        if (amountOre <= 0) return AppResult.Error(ErrorReason.INVALID_AMOUNT)
+        val allMembers = (splitAmong + paidBy).all { db.isMember(groupId, it) }
+        if (splitAmong.isEmpty() || !allMembers) return AppResult.Error(ErrorReason.NOT_ALLOWED)
+
+        db.expenses.update { all ->
+            all.map { expense ->
+                if (expense.id == expenseId) {
+                    expense.copy(
+                        description = description.trim(),
+                        category = category,
+                        amountOre = amountOre,
+                        paidBy = paidBy,
+                        splitAmong = splitAmong.distinct(),
+                        receiptUri = receiptUri,
+                        syncStatus = SyncStatus.PENDING,
+                    )
+                } else {
+                    expense
+                }
+            }
+        }
+        markSyncedLater(expenseId)
+        return AppResult.Success(Unit)
+    }
+
     override suspend fun deleteExpense(groupId: String, expenseId: String): AppResult<Unit> {
         db.simulateCall()?.let { return AppResult.Error(it) }
+        val me = db.currentUserId.value ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        // Any member may delete; the group boundary and the expense type are checked.
+        if (!db.isMember(groupId, me)) return AppResult.Error(ErrorReason.NOT_ALLOWED)
         val expense = db.expenses.value.find { it.id == expenseId && it.groupId == groupId }
-        if (expense == null || expense.createdBy != db.currentUserId.value) {
-            return AppResult.Error(ErrorReason.NOT_ALLOWED)   // only the creator may delete
-        }
+            ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        // Settlements are balance corrections, not expenses, and are never removed here.
+        if (expense.type != ExpenseType.EXPENSE) return AppResult.Error(ErrorReason.NOT_ALLOWED)
         db.expenses.update { all -> all.filterNot { it.id == expenseId } }
         return AppResult.Success(Unit)
     }

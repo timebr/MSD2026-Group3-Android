@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -22,13 +25,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,14 +46,15 @@ import com.example.oweowe.R
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
 import com.example.oweowe.domain.formatKr
+import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
 import com.example.oweowe.ui.components.ErrorState
 import com.example.oweowe.ui.components.InitialsAvatar
 import com.example.oweowe.ui.components.LoadingState
-import com.example.oweowe.ui.components.MyBalanceText
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SignedAmount
 import com.example.oweowe.ui.components.asString
+import androidx.compose.foundation.shape.CircleShape
 
 /** S3 Home dashboard (FR5, FR6, FR8, NFR3, NFR4, NFR5). */
 @Composable
@@ -54,25 +62,61 @@ fun HomeScreen(
     container: AppContainer,
     onAddExpense: (groupId: String?) -> Unit,
     onGoToGroups: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val homeViewModel: HomeViewModel = viewModel(factory = HomeViewModel.factory(container))
     val state by homeViewModel.uiState.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    var memberToSettle by remember { mutableStateOf<MemberBalance?>(null) }
     LaunchedEffect(homeViewModel) {
         homeViewModel.messages.collect { message ->
             snackbarHostState.showSnackbar(message.asString(context))
         }
     }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+    Scaffold(
+        topBar = {
+            AppTopBar(
+                title = state.me?.let { stringResource(R.string.home_greeting, it.fullName) }
+                    ?: stringResource(R.string.app_name),
+                navigationIcon = {
+                    Image(
+                        painter = painterResource(R.drawable.ic_logo),
+                        contentDescription = null,
+                        modifier = Modifier.padding(start = 12.dp).size(32.dp),
+                    )
+                },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = stringResource(R.string.cd_open_settings),
+                        )
+                    }
+                },
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
         HomeContent(
             state = state,
             onAddExpense = { onAddExpense(state.group?.id) },
             onRemind = homeViewModel::sendReminder,
+            onSettleUp = { member -> memberToSettle = member },
             onGoToGroups = onGoToGroups,
             modifier = Modifier.padding(padding),
+        )
+    }
+    memberToSettle?.let { member ->
+        SettleUpDialog(
+            member = member,
+            onConfirm = {
+                homeViewModel.settleUp(member)
+                memberToSettle = null
+            },
+            onDismiss = { memberToSettle = null },
         )
     }
 }
@@ -84,6 +128,7 @@ fun HomeContent(
     onRemind: (MemberBalance) -> Unit,
     onGoToGroups: () -> Unit,
     modifier: Modifier = Modifier,
+    onSettleUp: (MemberBalance) -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
@@ -93,9 +138,9 @@ fun HomeContent(
             state.group == null -> EmptyState(
                 title = stringResource(R.string.home_no_groups_title),
                 message = stringResource(R.string.home_no_groups_message),
-                action = { Button(onClick = onGoToGroups) { Text(stringResource(R.string.home_go_to_groups)) } },
+                action = { Button(onClick = onGoToGroups, shape = CircleShape) { Text(stringResource(R.string.home_go_to_groups)) } },
             )
-            else -> HomeList(state, onAddExpense, onRemind)
+            else -> HomeList(state, onAddExpense, onRemind, onSettleUp, onGoToGroups)
         }
     }
 }
@@ -105,18 +150,15 @@ private fun HomeList(
     state: HomeUiState,
     onAddExpense: () -> Unit,
     onRemind: (MemberBalance) -> Unit,
+    onSettleUp: (MemberBalance) -> Unit,
+    onGoToGroups: () -> Unit,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item {
-            Text(
-                text = stringResource(R.string.home_greeting, state.me?.fullName.orEmpty()),
-                style = MaterialTheme.typography.headlineSmall,
-            )
-        }
-        item { CurrentGroupCard(state, onAddExpense) }
+        item { CurrentGroupCard(state, onGoToGroups) }
+        item { TotalBalanceCard(state, onAddExpense) }
         item {
             Text(
                 text = stringResource(R.string.home_balances_title),
@@ -124,19 +166,35 @@ private fun HomeList(
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
-        items(state.memberBalances, key = { it.user.uid }) { member ->
-            MemberBalanceRow(member, isMe = member.user.uid == state.me?.uid, onRemind = onRemind)
+        val others = state.memberBalances.filter { it.user.uid != state.me?.uid }
+        if (others.isEmpty()) {
+            item {
+                Text(
+                    text = stringResource(R.string.home_balances_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            items(others, key = { it.user.uid }) { member ->
+                MemberBalanceRow(member, onRemind = onRemind, onSettleUp = onSettleUp)
+            }
         }
         item { Spacer(Modifier.height(16.dp)) }
     }
 }
 
-/** S3: current group card with own balance and the Add expense action (FR4, FR6). */
+/** S3: current group card, with a shortcut to the groups list (FR4). */
 @Composable
-private fun CurrentGroupCard(state: HomeUiState, onAddExpense: () -> Unit) {
+private fun CurrentGroupCard(state: HomeUiState, onGoToGroups: () -> Unit) {
     val group = state.group ?: return
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.home_current_group_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Text(group.name, style = MaterialTheme.typography.titleLarge)
             if (group.description.isNotBlank()) {
                 Text(
@@ -151,21 +209,64 @@ private fun CurrentGroupCard(state: HomeUiState, onAddExpense: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
             )
-            MyBalanceText(state.myBalanceOre, Modifier.padding(top = 12.dp))
-            Button(onClick = onAddExpense, modifier = Modifier.padding(top = 12.dp)) {
+            TextButton(
+                onClick = onGoToGroups,
+                modifier = Modifier.padding(top = 4.dp),
+            ) {
+                Text(stringResource(R.string.home_see_list_view))
+            }
+        }
+    }
+}
+
+/** S3: total balance card with the Add expense action (FR5, FR6). */
+@Composable
+private fun TotalBalanceCard(state: HomeUiState, onAddExpense: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.home_total_balance_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SignedAmount(
+                ore = state.myBalanceOre,
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Text(
+                text = when {
+                    state.myBalanceOre > 0 -> stringResource(R.string.home_overall_owed)
+                    state.myBalanceOre < 0 -> stringResource(R.string.home_overall_owe)
+                    else -> stringResource(R.string.home_overall_settled)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(
+                onClick = onAddExpense,
+                shape = CircleShape,
+                modifier = Modifier.padding(top = 12.dp).height(48.dp),
+            ) {
                 Text(stringResource(R.string.home_add_expense))
             }
         }
     }
 }
 
-/** Row for one member in the S3 balances list, with a Remind action (FR8). */
+/** Row for one member in the S3 balances list, with a Remind action (FR5, FR8). */
 @Composable
 private fun MemberBalanceRow(
     member: MemberBalance,
-    isMe: Boolean,
     onRemind: (MemberBalance) -> Unit,
+    onSettleUp: (MemberBalance) -> Unit,
 ) {
+    val owesMe = member.owesMeOre > 0
+    val status = when {
+        owesMe -> stringResource(R.string.home_member_owes_you, formatKr(member.owesMeOre))
+        member.iOweOre > 0 -> stringResource(R.string.home_you_owe_member, formatKr(member.iOweOre))
+        else -> stringResource(R.string.home_member_settled)
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth(),
@@ -176,32 +277,26 @@ private fun MemberBalanceRow(
                 .weight(1f)
                 .padding(horizontal = 12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(member.user.fullName, style = MaterialTheme.typography.bodyLarge)
-                if (isMe) {
-                    Text(
-                        text = stringResource(R.string.common_you_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 6.dp),
-                    )
-                }
-            }
-            if (member.owesMeOre > 0) {
-                Text(
-                    text = stringResource(R.string.home_member_owes_you, formatKr(member.owesMeOre)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(member.user.fullName, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = status,
+                style = MaterialTheme.typography.bodySmall,
+                color = when {
+                    owesMe -> MaterialTheme.colorScheme.primary
+                    member.iOweOre > 0 -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
         }
-        SignedAmount(ore = member.balanceOre)
-        if (member.owesMeOre > 0 && !isMe) {
-            IconButton(onClick = { onRemind(member) }) {
-                Icon(
-                    imageVector = Icons.Filled.Notifications,
-                    contentDescription = stringResource(R.string.cd_remind_member, member.user.fullName),
-                )
+        SignedAmount(ore = member.owesMeOre - member.iOweOre)
+        // FR8: remind members who owe me. FR5: settle up with members I owe.
+        if (owesMe) {
+            TextButton(onClick = { onRemind(member) }) {
+                Text(stringResource(R.string.home_remind))
+            }
+        } else if (member.iOweOre > 0) {
+            TextButton(onClick = { onSettleUp(member) }) {
+                Text(stringResource(R.string.settle_up))
             }
         }
     }
@@ -210,6 +305,39 @@ private fun MemberBalanceRow(
 @Composable
 private fun ErrorStatePlaceholder() {
     ErrorState(message = stringResource(R.string.common_error_generic))
+}
+
+
+/** Confirms a settlement before it is recorded for the whole group (FR5). */
+@Composable
+private fun SettleUpDialog(
+    member: MemberBalance,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settle_up_title)) },
+        text = {
+            Text(
+                stringResource(
+                    R.string.settle_up_message,
+                    formatKr(member.iOweOre),
+                    member.user.fullName,
+                ),
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.settle_up))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        },
+    )
 }
 
 @Preview(showBackground = true, name = "Home content")
@@ -234,6 +362,7 @@ private fun HomeContentPreview() {
                         User(uid = "u3", fullName = "Jonas Test", email = "jonas@test.dk"),
                         balanceOre = -4_333,
                         owesMeOre = 0,
+                        iOweOre = 4_333,
                     ),
                 ),
                 myBalanceOre = 1_667,

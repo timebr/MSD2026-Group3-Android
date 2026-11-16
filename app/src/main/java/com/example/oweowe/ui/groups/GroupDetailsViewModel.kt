@@ -9,6 +9,7 @@ import com.example.oweowe.AppContainer
 import com.example.oweowe.R
 import com.example.oweowe.data.connectivity.ConnectivityObserver
 import com.example.oweowe.data.model.Expense
+import com.example.oweowe.data.model.ExpenseType
 import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.User
 import com.example.oweowe.data.repository.AppResult
@@ -45,6 +46,16 @@ data class MemberRow(
     val canRemove: Boolean,
     /** > 0 when this member owes the signed-in user money (Remind, FR8). */
     val owesMeOre: Long,
+    /** > 0 when the signed-in user owes this member money (FR5, FR6). */
+    val iOweOre: Long = 0,
+)
+
+/** One transaction row on the Group overview (S4); the group is implied there. */
+data class GroupTransaction(
+    val expense: Expense,
+    val payerName: String,
+    /** Settlement recipient, shown as "A paid B" (FR5). */
+    val payeeName: String,
 )
 
 data class GroupOverviewUiState(
@@ -55,6 +66,8 @@ data class GroupOverviewUiState(
     val group: Group? = null,
     val totalSpentOre: Long = 0,
     val members: List<MemberRow> = emptyList(),
+    /** The group's expenses and settlements, newest first (FR5). */
+    val transactions: List<GroupTransaction> = emptyList(),
     val busy: Boolean = false,
 )
 
@@ -124,6 +137,7 @@ class GroupDetailsViewModel(
     ): GroupOverviewUiState {
         val balances = BalanceCalculator.balances(expenses)
         val meId = inputs.me?.uid.orEmpty()
+        val userById = users.associateBy { it.uid }
         return GroupOverviewUiState(
             loading = false,
             offline = !inputs.online,
@@ -139,6 +153,21 @@ class GroupDetailsViewModel(
                         isMe = user.uid == meId,
                         canRemove = user.uid != meId && BalanceCalculator.isSettled(expenses, user.uid),
                         owesMeOre = BalanceCalculator.amountOwed(expenses, from = user.uid, to = meId),
+                        iOweOre = BalanceCalculator.amountOwed(expenses, from = meId, to = user.uid),
+                    )
+                },
+            transactions = expenses
+                .sortedByDescending { it.createdAt }
+                .map { expense ->
+                    GroupTransaction(
+                        expense = expense,
+                        payerName = userById[expense.paidBy]?.fullName.orEmpty(),
+                        // For a settlement, splitAmong holds the recipient.
+                        payeeName = if (expense.type == ExpenseType.SETTLEMENT) {
+                            userById[expense.splitAmong.firstOrNull()]?.fullName.orEmpty()
+                        } else {
+                            ""
+                        },
                     )
                 },
             busy = inputs.busy,
@@ -201,14 +230,25 @@ class GroupDetailsViewModel(
         if (busy.value) return
         busy.value = true
         viewModelScope.launch {
-            val result = groupRepository.addMemberByEmail(groupId, email)
-            busy.value = false
-            val message = when (result) {
-                is AppResult.Success -> UiMessage(R.string.manage_members_added, listOf(result.value.fullName))
-                is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
-            }
-            _messages.emit(message)
+            emitAddedMember(groupRepository.addMemberByEmail(groupId, email))
         }
+    }
+
+    fun addMemberByPhone(phone: String) {
+        if (busy.value) return
+        busy.value = true
+        viewModelScope.launch {
+            emitAddedMember(groupRepository.addMemberByPhone(groupId, phone))
+        }
+    }
+
+    private suspend fun emitAddedMember(result: AppResult<User>) {
+        busy.value = false
+        val message = when (result) {
+            is AppResult.Success -> UiMessage(R.string.manage_members_added, listOf(result.value.fullName))
+            is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
+        }
+        _messages.emit(message)
     }
 
     fun removeMember(member: MemberRow) {
@@ -219,6 +259,24 @@ class GroupDetailsViewModel(
             busy.value = false
             val message = when (result) {
                 is AppResult.Success -> UiMessage(R.string.manage_members_removed, listOf(member.user.fullName))
+                is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
+            }
+            _messages.emit(message)
+        }
+    }
+
+    /** FR4: any group member may delete an expense from the group overview. */
+    fun deleteExpense(expense: Expense) {
+        if (busy.value) return
+        busy.value = true
+        viewModelScope.launch {
+            val result = expenseRepository.deleteExpense(groupId, expense.id)
+            busy.value = false
+            val message = when (result) {
+                is AppResult.Success -> UiMessage(
+                    R.string.group_overview_expense_deleted,
+                    listOf(expense.description.ifBlank { expense.category }),
+                )
                 is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
             }
             _messages.emit(message)
@@ -241,6 +299,24 @@ class GroupDetailsViewModel(
             busy.value = false
             val message = when (result) {
                 is AppResult.Success -> UiMessage(R.string.group_overview_reminder_sent, listOf(member.user.fullName))
+                is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
+            }
+            _messages.emit(message)
+        }
+    }
+
+    /**
+     * FR5: settle up with a member the signed-in user owes money to. Recorded as
+     * a SETTLEMENT expense marked by the debtor (design decision #10).
+     */
+    fun settleUp(member: MemberRow) {
+        if (busy.value) return
+        busy.value = true
+        viewModelScope.launch {
+            val result = expenseRepository.settleUp(groupId, member.user.uid)
+            busy.value = false
+            val message = when (result) {
+                is AppResult.Success -> UiMessage(R.string.settle_up_done, listOf(member.user.fullName))
                 is AppResult.Error -> UiMessage(errorReasonRes(result.reason))
             }
             _messages.emit(message)

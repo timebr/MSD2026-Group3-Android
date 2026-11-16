@@ -17,8 +17,41 @@ class FakeUserRepository(private val db: FakeBackend) : UserRepository {
     override fun observeUsers(uids: List<String>): Flow<List<User>> =
         db.users.map { users -> users.filter { it.uid in uids } }
 
-    override suspend fun updateProfile(fullName: String, phone: String): AppResult<Unit> =
-        updateMe { it.copy(fullName = fullName.trim(), phone = phone.trim()) }
+    override suspend fun updateProfile(
+        fullName: String,
+        email: String,
+        photoUri: String?,
+    ): AppResult<Unit> {
+        db.simulateCall()?.let { return AppResult.Error(it) }
+        val mail = email.trim().lowercase()
+        if (!mail.contains("@")) return AppResult.Error(ErrorReason.INVALID_EMAIL)
+        val me = db.currentUserId.value ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        if (db.users.value.any { it.uid != me && it.email == mail }) {
+            return AppResult.Error(ErrorReason.EMAIL_ALREADY_IN_USE)
+        }
+        val oldMail = db.users.value.find { it.uid == me }?.email
+        if (oldMail != null && oldMail != mail) {
+            // Sign-in looks the password up by email, so the entry has to move
+            // with the address or the user could no longer sign in.
+            val password = db.passwords.remove(oldMail) ?: return AppResult.Error(ErrorReason.UNKNOWN)
+            db.passwords[mail] = password
+        }
+        db.users.update { users ->
+            users.map {
+                if (it.uid != me) {
+                    it
+                } else {
+                    it.copy(
+                        fullName = fullName.trim(),
+                        email = mail,
+                        // null means "no new photo", so saving the name keeps the old one.
+                        photoUri = photoUri ?: it.photoUri,
+                    )
+                }
+            }
+        }
+        return AppResult.Success(Unit)
+    }
 
     override suspend fun setPushEnabled(enabled: Boolean): AppResult<Unit> =
         updateMe { it.copy(pushEnabled = enabled) }
