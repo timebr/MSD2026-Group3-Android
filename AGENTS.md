@@ -78,6 +78,28 @@ Room (read) / Outbox + WorkManager (write) → RemoteDataSource.
   (in-memory, with a switch to simulate failures) must keep working so the app
   and tests run without Firebase.
 
+## Frontend (UI) workflow
+
+Before changing anything under `ui/`, adding a screen or component, or
+touching a screen's `UiState`/previews, read
+[docs/frontend-workflow.md](docs/frontend-workflow.md) and follow its loop.
+The short version:
+
+1. Name the screen ID (S1–S11) and FR/NFR; copy the closest existing pattern.
+2. Define one immutable `UiState` per screen with loading, content, empty and
+   error states.
+3. Use a fake repository (`data/repository/fake/`) or local preview data;
+   never call a repository, DAO or Firebase from a `@Composable`.
+4. Add `@Preview` functions for the states that can occur.
+5. Run `./gradlew assembleDebug`, `./gradlew lint` and
+   `./gradlew testDebugUnitTest`; check the screen on an emulator when
+   possible, including airplane mode if it reads or writes data.
+
+opencode loads the `android-compose-ui` skill automatically for UI requests.
+Other agents should be pointed at `docs/frontend-workflow.md`, which is the
+single source of truth. Do not add Showkase, Paparazzi, Roborazzi or token
+tooling in a feature PR; propose it in a separate `chore/` PR.
+
 ## Reliability (NFR, graded)
 
 The assignment requires fault tolerance, offline availability and user
