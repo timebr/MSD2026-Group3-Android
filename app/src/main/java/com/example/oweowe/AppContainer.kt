@@ -14,6 +14,8 @@ import com.example.oweowe.data.repository.fake.FakeGroupRepository
 import com.example.oweowe.data.repository.fake.FakeReminderRepository
 import com.example.oweowe.data.repository.fake.FakeUserRepository
 import com.example.oweowe.data.repository.fake.SeedData
+import com.example.oweowe.data.repository.firebase.FirebaseAuthRepository
+import com.example.oweowe.data.repository.firebase.FirebaseUserRepository
 
 /**
  * The one place where implementations are wired. The UI only sees the repository
@@ -21,10 +23,11 @@ import com.example.oweowe.data.repository.fake.SeedData
  * Firestore ones later is a change in this file only.
  */
 class AppContainer(
+    useFirebase: Boolean = false,
     val connectivityObserver: ConnectivityObserver = AlwaysOnlineObserver,
 ) {
     /** Public so a debug menu or a test can turn the knobs (delay, failNextWith). */
-    val fakeBackend = FakeBackend(startSignedInAs = SeedData.TIM)
+    val fakeBackend = FakeBackend(startSignedInAs = if (useFirebase) null else SeedData.TIM)
 
     /**
      * The signed-in user at process start, known synchronously so the first
@@ -33,8 +36,12 @@ class AppContainer(
      */
     val initialUserId: String? = fakeBackend.currentUserId.value
 
-    val authRepository: AuthRepository = FakeAuthRepository(fakeBackend)
-    val userRepository: UserRepository = FakeUserRepository(fakeBackend)
+    val authRepository: AuthRepository =
+        if (useFirebase) FirebaseAuthRepository() else FakeAuthRepository(fakeBackend)
+    val userRepository: UserRepository =
+        if (useFirebase) FirebaseUserRepository() else FakeUserRepository(fakeBackend)
+
+    // Still fake until stage 5:
     val groupRepository: GroupRepository = FakeGroupRepository(fakeBackend)
     val expenseRepository: ExpenseRepository = FakeExpenseRepository(fakeBackend)
     val reminderRepository: ReminderRepository = FakeReminderRepository(fakeBackend)
