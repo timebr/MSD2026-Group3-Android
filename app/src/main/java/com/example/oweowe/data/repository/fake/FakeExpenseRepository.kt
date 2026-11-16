@@ -69,6 +69,8 @@ class FakeExpenseRepository(private val db: FakeBackend) : ExpenseRepository {
                         paidBy = paidBy,
                         splitAmong = splitAmong.distinct(),
                         receiptUri = receiptUri,
+                        updatedBy = me,
+                        updatedAt = db.now(),
                         syncStatus = SyncStatus.PENDING,
                     )
                 } else {
