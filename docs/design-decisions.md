@@ -32,8 +32,12 @@ plan is in the backend plan document; the resulting structure is in
 10. **Settling up is a special expense (`SETTLEMENT`), marked by the debtor,
    with no verification.** No extra logic is needed in the balance
    calculation.
-11. **Expenses can be deleted by their creator but never edited.** This avoids
-    offline edit conflicts.
+11. **Any group member can edit or delete an expense; settlements are excluded.**
+    Editing fixes a wrong amount, payer or split without deleting and
+    re-adding the row, which would lose its history; the expense keeps its
+    group and `createdBy`. Deleting is confirmed first and removes the row for
+    the whole group. A concurrent offline edit resolves last write wins,
+    because each edit replaces the whole row.
 12. **A member can only be removed when their balance is 0.** This avoids
     orphaned debts.
 
@@ -45,8 +49,9 @@ plan is in the backend plan document; the resulting structure is in
   calculate them.
 - Any signed-in user can read other users' emails, which the member search
   needs.
-- Profile photos and receipts are probably dropped, because Firebase Storage
-  likely requires the Blaze plan (not verified yet).
+- Profile photos and receipts are kept on the device only for now. Firebase
+  Storage likely requires the Blaze plan (not verified yet); cross-device
+  images are a follow-up task.
 
 ## Testing
 

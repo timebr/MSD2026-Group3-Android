@@ -11,8 +11,10 @@ enum class ErrorReason {
     EMAIL_ALREADY_IN_USE,
     WEAK_PASSWORD,          // Firebase requires at least 6 characters
     WRONG_CREDENTIALS,
+    REAUTH_REQUIRED,        // e.g. changing the email needs a recent sign-in
     // Groups and members
     NO_ACCOUNT_WITH_EMAIL,
+    NO_ACCOUNT_WITH_PHONE,
     ALREADY_MEMBER,
     BALANCE_NOT_ZERO,
     // Expenses

@@ -36,3 +36,9 @@ google-services.json
 
 # Additional context files for prompting
 .context
+
+# Firebase Emulator logs
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/

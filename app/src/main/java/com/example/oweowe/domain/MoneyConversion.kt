@@ -9,6 +9,13 @@ fun formatKr(ore: Long): String {
     return "%s%d,%02d kr.".format(sign, absOre / 100, absOre % 100)
 }
 
+/** 1667 -> "16,67" for an amount input field (no " kr." suffix). */
+fun formatOreForInput(ore: Long): String {
+    val sign = if (ore < 0) "-" else ""
+    val absOre = abs(ore)
+    return "%s%d,%02d".format(sign, absOre / 100, absOre % 100)
+}
+
 /**
  * "16" -> 1600, "16,5" -> 1650, "16.50" -> 1650, "0,01" -> 1.
  * Accepts both "," and "." as the decimal separator. Null when [text] is not a

@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function groupData(groupId) {
+      return get(/databases/$(database)/documents/groups/$(groupId)).data;
+    }
+
+    function isMember(groupId) {
+      return signedIn() && request.auth.uid in groupData(groupId).memberIds;
+    }
+
+    // Profiles: every signed-in user can read (needed for "add member by
+    // email/phone"), only the owner can write their own profile, nobody deletes.
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid;
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid;
+      allow delete: if false;
+    }
+
+    match /groups/{groupId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.memberIds;
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.auth.uid in request.resource.data.memberIds;
+      // Members may edit details and add/remove other members, but cannot
+      // remove themselves, change the creator or rewrite the creation time.
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.memberIds
+        && request.auth.uid in request.resource.data.memberIds
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+
+      match /expenses/{expenseId} {
+        allow read: if isMember(groupId);
+        allow create: if isMember(groupId)
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.type in ["EXPENSE", "SETTLEMENT"]
+          && request.resource.data.amountOre is int
+          && request.resource.data.amountOre > 0
+          && request.resource.data.paidBy in groupData(groupId).memberIds
+          && request.resource.data.splitAmong.size() > 0
+          && request.resource.data.splitAmong.hasOnly(groupData(groupId).memberIds);
+        // Any member may edit an expense (purpose, category, amount, payer,
+        // split, receipt), but the identity and group of the row stay fixed.
+        // Settlements are balance corrections and are never edited.
+        allow update: if isMember(groupId)
+          && resource.data.type == "EXPENSE"
+          && request.resource.data.type == resource.data.type
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.groupId == resource.data.groupId
+          && request.resource.data.amountOre is int
+          && request.resource.data.amountOre > 0
+          && request.resource.data.paidBy in groupData(groupId).memberIds
+          && request.resource.data.splitAmong.size() > 0
+          && request.resource.data.splitAmong.hasOnly(groupData(groupId).memberIds);
+        allow delete: if isMember(groupId) && resource.data.type == "EXPENSE";
+      }
+
+      match /reminders/{reminderId} {
+        allow read: if isMember(groupId);
+        allow create: if isMember(groupId)
+          && request.resource.data.fromUserId == request.auth.uid
+          && request.resource.data.toUserId in groupData(groupId).memberIds
+          && request.resource.data.amountOre is int
+          && request.resource.data.amountOre >= 0;
+        allow update, delete: if false;
+      }
+    }
+
+    // "All reminders addressed to me" across groups (collection group query).
+    match /{path=**}/reminders/{reminderId} {
+      allow read: if signedIn() && resource.data.toUserId == request.auth.uid;
+    }
+  }
+}

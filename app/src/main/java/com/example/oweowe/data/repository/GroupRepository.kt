@@ -15,6 +15,9 @@ interface GroupRepository {
     /** NO_ACCOUNT_WITH_EMAIL or ALREADY_MEMBER on failure; returns the added user. */
     suspend fun addMemberByEmail(groupId: String, email: String): AppResult<User>
 
+    /** NO_ACCOUNT_WITH_PHONE or ALREADY_MEMBER on failure; returns the added user. */
+    suspend fun addMemberByPhone(groupId: String, phone: String): AppResult<User>
+
     /** BALANCE_NOT_ZERO if the member still owes or is owed money. */
     suspend fun removeMember(groupId: String, userId: String): AppResult<Unit>
 }
