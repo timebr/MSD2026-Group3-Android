@@ -22,3 +22,14 @@ temporarily rename that file; `OweOweApplication` then chooses the fakes.
 
 All changes go into `main` through a pull request with green CI and a review
 from a teammate who didn't write the code.
+
+## Notes for submission
+The `app/google-services.json` is submitted seperately in the .zip folder. In order to check the functionality do the following:
+1. Clone the repository to your computer
+2. Copy `google-services.json` directly in the `app/` folder.
+3. Run the app
+
+### Test account for submission
+To use the app, you can either create a new account or you use a pre-given test account.
+**Testuser**: test@test.com
+**Password**: Mentioned in the implementation document
