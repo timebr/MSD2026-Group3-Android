@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -153,7 +154,14 @@ fun OweOweApp(container: AppContainer) {
                             icon = {
                                 Icon(tab.icon, contentDescription = stringResource(tab.labelRes))
                             },
-                            label = { Text(stringResource(tab.labelRes)) },
+                            label = {
+                                Text(
+                                    text = stringResource(tab.labelRes),
+                                    // "Add expense" wraps onto two lines in a five-tab bar;
+                                    // without this the second line starts at the item's left edge.
+                                    textAlign = TextAlign.Center,
+                                )
+                            },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
