@@ -7,6 +7,8 @@ import com.example.oweowe.data.repository.AppResult
 import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.data.repository.ExpenseRepository
 import com.example.oweowe.domain.BalanceCalculator
+import com.example.oweowe.domain.canSettleUp
+import com.example.oweowe.domain.canWriteExpense
 import com.example.oweowe.sync.SyncStatusStore
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -31,16 +33,6 @@ class FirebaseExpenseRepository(
 
     private fun expenses(groupId: String) =
         db.collection("groups").document(groupId).collection("expenses")
-
-    /** The group's current member IDs, or null if the group can't be read (NOT_ALLOWED). */
-    private suspend fun memberIdsOf(groupId: String): List<String>? {
-        val snapshot = try {
-            db.collection("groups").document(groupId).get().await()
-        } catch (e: Exception) {
-            return null
-        }
-        return (snapshot.get("memberIds") as? List<*>)?.mapNotNull { it as? String }
-    }
 
     override fun observeExpenses(groupId: String): Flow<List<Expense>> =
         combine(
@@ -68,8 +60,11 @@ class FirebaseExpenseRepository(
         val uid = auth.currentUser?.uid ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
         if (amountOre <= 0) return AppResult.Error(ErrorReason.INVALID_AMOUNT)
         if (splitAmong.isEmpty()) return AppResult.Error(ErrorReason.NOT_ALLOWED)
-        val memberIds = memberIdsOf(groupId) ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
-        if (uid !in memberIds || paidBy !in memberIds || !splitAmong.all { it in memberIds }) {
+        val memberIds = when (val members = db.groupMemberIds(groupId)) {
+            is AppResult.Success -> members.value
+            is AppResult.Error -> return AppResult.Error(members.reason)
+        }
+        if (!canWriteExpense(uid, memberIds, paidBy, splitAmong)) {
             return AppResult.Error(ErrorReason.NOT_ALLOWED)
         }
         val ref = expenses(groupId).document()
@@ -104,8 +99,11 @@ class FirebaseExpenseRepository(
         val uid = auth.currentUser?.uid ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
         if (amountOre <= 0) return AppResult.Error(ErrorReason.INVALID_AMOUNT)
         if (splitAmong.isEmpty()) return AppResult.Error(ErrorReason.NOT_ALLOWED)
-        val memberIds = memberIdsOf(groupId) ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
-        if (uid !in memberIds || paidBy !in memberIds || !splitAmong.all { it in memberIds }) {
+        val memberIds = when (val members = db.groupMemberIds(groupId)) {
+            is AppResult.Success -> members.value
+            is AppResult.Error -> return AppResult.Error(members.reason)
+        }
+        if (!canWriteExpense(uid, memberIds, paidBy, splitAmong)) {
             return AppResult.Error(ErrorReason.NOT_ALLOWED)
         }
 
@@ -150,8 +148,11 @@ class FirebaseExpenseRepository(
 
     override suspend fun settleUp(groupId: String, withUserId: String): AppResult<Unit> {
         val uid = auth.currentUser?.uid ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
-        val memberIds = memberIdsOf(groupId) ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
-        if (uid !in memberIds || withUserId !in memberIds) return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        val memberIds = when (val members = db.groupMemberIds(groupId)) {
+            is AppResult.Success -> members.value
+            is AppResult.Error -> return AppResult.Error(members.reason)
+        }
+        if (!canSettleUp(uid, memberIds, withUserId)) return AppResult.Error(ErrorReason.NOT_ALLOWED)
         val groupExpenses = try {
             expenses(groupId).get().await()
                 .documents.map { it.toExpense(groupId, SyncStatus.SYNCED) }

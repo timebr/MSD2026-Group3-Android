@@ -13,7 +13,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -142,19 +141,9 @@ class FirebaseGroupRepository(
     private suspend fun isMember(groupId: String, uid: String): Boolean =
         currentMemberIds(groupId)?.contains(uid) == true
 
-    private suspend fun currentMemberIds(groupId: String): List<String>? {
-        val ref = groups.document(groupId)
-        // A just-created group can exist only in the local cache for a moment;
-        // fall back to the cache when the server has not seen it yet or denies
-        // the read because the document is not there (NFR2).
-        val server = runCatching { ref.get().await() }.getOrNull()
-        val snapshot = if (server?.exists() == true) {
-            server
-        } else {
-            runCatching { ref.get(Source.CACHE).await() }.getOrNull()
+    private suspend fun currentMemberIds(groupId: String): List<String>? =
+        when (val members = db.groupMemberIds(groupId)) {
+            is AppResult.Success -> members.value
+            is AppResult.Error -> null
         }
-        return snapshot?.get("memberIds")?.let { ids ->
-            (ids as? List<*>)?.mapNotNull { it as? String }.orEmpty()
-        }
-    }
 }
