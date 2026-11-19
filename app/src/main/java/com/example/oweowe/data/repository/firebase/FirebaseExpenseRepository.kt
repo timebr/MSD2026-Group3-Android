@@ -7,6 +7,8 @@ import com.example.oweowe.data.repository.AppResult
 import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.data.repository.ExpenseRepository
 import com.example.oweowe.domain.BalanceCalculator
+import com.example.oweowe.domain.canSettleUp
+import com.example.oweowe.domain.canWriteExpense
 import com.example.oweowe.sync.SyncStatusStore
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -58,6 +60,13 @@ class FirebaseExpenseRepository(
         val uid = auth.currentUser?.uid ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
         if (amountOre <= 0) return AppResult.Error(ErrorReason.INVALID_AMOUNT)
         if (splitAmong.isEmpty()) return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        val memberIds = when (val members = db.groupMemberIds(groupId)) {
+            is AppResult.Success -> members.value
+            is AppResult.Error -> return AppResult.Error(members.reason)
+        }
+        if (!canWriteExpense(uid, memberIds, paidBy, splitAmong)) {
+            return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        }
         val ref = expenses(groupId).document()
         val data = mutableMapOf<String, Any>(
             "id" to ref.id,
@@ -90,6 +99,13 @@ class FirebaseExpenseRepository(
         val uid = auth.currentUser?.uid ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
         if (amountOre <= 0) return AppResult.Error(ErrorReason.INVALID_AMOUNT)
         if (splitAmong.isEmpty()) return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        val memberIds = when (val members = db.groupMemberIds(groupId)) {
+            is AppResult.Success -> members.value
+            is AppResult.Error -> return AppResult.Error(members.reason)
+        }
+        if (!canWriteExpense(uid, memberIds, paidBy, splitAmong)) {
+            return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        }
 
         val ref = expenses(groupId).document(expenseId)
         val existing = try {
@@ -132,6 +148,11 @@ class FirebaseExpenseRepository(
 
     override suspend fun settleUp(groupId: String, withUserId: String): AppResult<Unit> {
         val uid = auth.currentUser?.uid ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
+        val memberIds = when (val members = db.groupMemberIds(groupId)) {
+            is AppResult.Success -> members.value
+            is AppResult.Error -> return AppResult.Error(members.reason)
+        }
+        if (!canSettleUp(uid, memberIds, withUserId)) return AppResult.Error(ErrorReason.NOT_ALLOWED)
         val groupExpenses = try {
             expenses(groupId).get().await()
                 .documents.map { it.toExpense(groupId, SyncStatus.SYNCED) }

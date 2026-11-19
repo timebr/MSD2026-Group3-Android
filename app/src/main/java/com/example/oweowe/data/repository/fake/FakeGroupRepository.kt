@@ -6,6 +6,7 @@ import com.example.oweowe.data.repository.AppResult
 import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.data.repository.GroupRepository
 import com.example.oweowe.domain.BalanceCalculator
+import com.example.oweowe.domain.normalizePhone
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -61,16 +62,6 @@ class FakeGroupRepository(private val db: FakeBackend) : GroupRepository {
         if (db.isMember(groupId, user.uid)) return AppResult.Error(ErrorReason.ALREADY_MEMBER)
         changeGroup(groupId) { it.copy(memberIds = it.memberIds + user.uid) }
         return AppResult.Success(user)
-    }
-
-    /**
-     * Fake-only comparison rule: digits only, ignoring a leading Danish country
-     * code, so "+45 22 22 22 22" and "22222222" find the same profile. The real
-     * backend will define the canonical form and match on it.
-     */
-    private fun normalizePhone(phone: String): String {
-        val digits = phone.filter(Char::isDigit)
-        return if (digits.length > 8 && digits.startsWith("45")) digits.drop(2) else digits
     }
 
     override suspend fun removeMember(groupId: String, userId: String): AppResult<Unit> {

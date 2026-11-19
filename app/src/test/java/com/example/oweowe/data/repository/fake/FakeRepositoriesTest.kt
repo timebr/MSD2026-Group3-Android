@@ -54,6 +54,36 @@ class FakeRepositoriesTest {
     }
 
     @Test
+    fun addMemberByPhone_with0045CountryCode_findsTheAccount() = runTest {
+        val groups = FakeGroupRepository(backend(backgroundScope))
+        val groupId = (groups.createGroup("Phone test", "") as AppResult.Success).value
+
+        val result = groups.addMemberByPhone(groupId, "0045 22 22 22 22")   // Anna
+        assertEquals(
+            AppResult.Success(SeedData.users.first { it.uid == SeedData.ANNA }),
+            result,
+        )
+    }
+
+    @Test
+    fun register_storesTheNormalizedPhone() = runTest {
+        val db = backend(backgroundScope)
+        val auth = FakeAuthRepository(db)
+
+        val result = auth.register(
+            fullName = "New User",
+            email = "new@test.dk",
+            password = "password123",
+            phone = "0045 22 22 33 44",
+        )
+
+        assertEquals(AppResult.Success(Unit), result)
+        val user = db.users.value.first { it.email == "new@test.dk" }
+        assertEquals("0045 22 22 33 44", user.phone)
+        assertEquals("22223344", user.phoneNormalized)
+    }
+
+    @Test
     fun addMemberWithUnknownPhone_returnsNoAccount() = runTest {
         val groups = FakeGroupRepository(backend(backgroundScope))
         val result = groups.addMemberByPhone(SeedData.FLAT, "+45 99 99 99 99")
