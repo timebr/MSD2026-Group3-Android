@@ -4,6 +4,7 @@ import com.example.oweowe.data.model.User
 import com.example.oweowe.data.repository.AppResult
 import com.example.oweowe.data.repository.AuthRepository
 import com.example.oweowe.data.repository.ErrorReason
+import com.example.oweowe.domain.normalizePhone
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.update
 
@@ -21,12 +22,14 @@ class FakeAuthRepository(private val db: FakeBackend) : AuthRepository {
         if (db.users.value.any { it.email == mail }) return AppResult.Error(ErrorReason.EMAIL_ALREADY_IN_USE)
 
         val uid = db.newId()
+        val trimmedPhone = phone.trim()
         db.users.update {
             it + User(
                 uid = uid,
                 fullName = fullName.trim(),
                 email = mail,
-                phone = phone.trim(),
+                phone = trimmedPhone,
+                phoneNormalized = normalizePhone(trimmedPhone),
                 createdAt = db.now()
             )
         }
