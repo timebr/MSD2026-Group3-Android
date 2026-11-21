@@ -16,6 +16,7 @@ import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.ui.components.UiMessage
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonRes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -33,6 +35,7 @@ import kotlinx.coroutines.launch
 /** S6 Profile. */
 data class ProfileUiState(
     val loading: Boolean = true,
+    val loadError: Boolean = false,
     val offline: Boolean = false,
     val me: User? = null,
     val pushBusy: Boolean = false,
@@ -73,6 +76,9 @@ class ProfileViewModel(
         pushBusy,
     ) { me, online, busy ->
         ProfileUiState(loading = false, offline = !online, me = me, pushBusy = busy)
+    }.catch { e ->
+        if (e is CancellationException) throw e
+        emit(ProfileUiState(loading = false, loadError = true))
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProfileUiState())
 
     private val _editState = MutableStateFlow(EditProfileUiState())
@@ -81,19 +87,25 @@ class ProfileViewModel(
     init {
         // Pre-fill the edit form from the profile once it arrives.
         viewModelScope.launch {
-            val me = userRepository.observeMe().filterNotNull().first()
-            _editState.update {
-                if (it.loadedFromMe) {
-                    it
-                } else {
-                    it.copy(
-                        fullName = me.fullName,
-                        email = me.email,
-                        phone = me.phone,
-                        photoUri = me.photoUri,
-                        loadedFromMe = true,
-                    )
+            try {
+                val me = userRepository.observeMe().filterNotNull().first()
+                _editState.update {
+                    if (it.loadedFromMe) {
+                        it
+                    } else {
+                        it.copy(
+                            fullName = me.fullName,
+                            email = me.email,
+                            phone = me.phone,
+                            photoUri = me.photoUri,
+                            loadedFromMe = true,
+                        )
+                    }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _messages.tryEmit(UiMessage(R.string.common_error_generic))
             }
         }
     }

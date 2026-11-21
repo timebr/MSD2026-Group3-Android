@@ -1,5 +1,6 @@
 package com.example.oweowe.ui.groups
 
+import com.example.oweowe.SelectedGroupStore
 import com.example.oweowe.data.connectivity.AlwaysOfflineObserver
 import com.example.oweowe.data.connectivity.AlwaysOnlineObserver
 import com.example.oweowe.data.connectivity.ConnectivityObserver
@@ -32,11 +33,16 @@ class GroupsViewModelTest {
     private fun backend(scope: CoroutineScope) =
         FakeBackend(startSignedInAs = SeedData.TIM, scope = scope).apply { delayMs = 0 }
 
-    private fun viewModel(db: FakeBackend, observer: ConnectivityObserver) = GroupsViewModel(
+    private fun viewModel(
+        db: FakeBackend,
+        observer: ConnectivityObserver,
+        selectedGroupStore: SelectedGroupStore? = null,
+    ) = GroupsViewModel(
         groupRepository = FakeGroupRepository(db),
         userRepository = FakeUserRepository(db),
         expenseRepository = FakeExpenseRepository(db),
         connectivity = observer,
+        selectedGroupStore = selectedGroupStore,
     )
 
     @Test
@@ -50,6 +56,16 @@ class GroupsViewModelTest {
         assertEquals(listOf(SeedData.FLAT), state.groups.map { it.group.id })
         val expected = BalanceCalculator.balances(db.expenses.value.filter { it.groupId == SeedData.FLAT })[SeedData.TIM]
         assertEquals(expected, state.groups.single().myNetOre)
+    }
+
+    @Test
+    fun fallbackGroup_isMirroredToTheSelectedGroupStore() = runTest {
+        val db = backend(backgroundScope)
+        val store = SelectedGroupStore()
+
+        viewModel(db, AlwaysOnlineObserver, store).uiState.first { !it.loading }
+
+        assertEquals(SeedData.FLAT, store.selectedGroupId.value)
     }
 
     @Test

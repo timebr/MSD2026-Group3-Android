@@ -2,9 +2,31 @@ package com.example.oweowe.data.repository.firebase
 
 import com.example.oweowe.data.model.Expense
 import com.example.oweowe.data.model.ExpenseType
+import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.model.Reminder
 import com.example.oweowe.data.model.SyncStatus
+import com.example.oweowe.data.model.User
 import com.google.firebase.firestore.DocumentSnapshot
+
+internal fun DocumentSnapshot.toUser(): User = User(
+    uid = getString("uid")?.takeIf { it.isNotBlank() } ?: id,
+    fullName = getString("fullName").orEmpty(),
+    email = getString("email").orEmpty().lowercase(),
+    phone = getString("phone").orEmpty(),
+    phoneNormalized = getString("phoneNormalized").orEmpty(),
+    pushEnabled = getBoolean("pushEnabled") ?: true,
+    createdAt = getLong("createdAt") ?: 0L,
+    photoUri = getString("photoUri"),
+)
+
+internal fun DocumentSnapshot.toGroup(): Group = Group(
+    id = id,
+    name = getString("name").orEmpty(),
+    description = getString("description").orEmpty(),
+    createdBy = getString("createdBy").orEmpty(),
+    createdAt = getLong("createdAt") ?: 0L,
+    memberIds = (get("memberIds") as? List<*>)?.mapNotNull { it as? String }.orEmpty(),
+)
 
 internal fun DocumentSnapshot.toExpense(groupId: String, syncStatus: SyncStatus): Expense {
     val type = getString("type")

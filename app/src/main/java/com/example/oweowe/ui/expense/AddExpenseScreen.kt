@@ -175,6 +175,7 @@ fun AddExpenseContent(
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
+            state.loadError -> ErrorState(message = stringResource(R.string.common_error_generic))
             state.expenseNotFound -> ErrorState(
                 message = stringResource(R.string.edit_expense_not_found),
             )
@@ -439,6 +440,25 @@ private fun AddExpenseNoGroupsPreview() {
     MaterialTheme {
         AddExpenseContent(
             state = AddExpenseUiState(loading = false),
+            onDescriptionChange = {},
+            onCategoryChange = {},
+            onAmountChange = {},
+            onGroupSelected = {},
+            onPayerSelected = {},
+            onToggleSplitMember = {},
+            onSelectAllMembers = {},
+            onAddReceipt = {},
+            onSubmit = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Add expense load error")
+@Composable
+private fun AddExpenseLoadErrorPreview() {
+    MaterialTheme {
+        AddExpenseContent(
+            state = AddExpenseUiState(loading = false, loadError = true),
             onDescriptionChange = {},
             onCategoryChange = {},
             onAmountChange = {},

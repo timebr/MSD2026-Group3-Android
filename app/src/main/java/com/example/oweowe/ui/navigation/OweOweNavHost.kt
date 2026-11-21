@@ -28,6 +28,8 @@ import com.example.oweowe.ui.groups.ManageMembersSheet
 import com.example.oweowe.ui.home.HomeScreen
 import com.example.oweowe.ui.profile.ProfileScreen
 
+private enum class GroupsSheet { CREATE, EDIT, MANAGE }
+
 /**
  * The navigation stack from the navigation model, one composable per route.
  * Screens only get navigation lambdas; only this file and [com.example.oweowe.MainActivity]
@@ -79,26 +81,37 @@ fun OweOweNavHost(
             }
         }
         composable(NavRoutes.Groups.ROUTE) {
-            var showCreateGroup by rememberSaveable { mutableStateOf(false) }
-            var editGroupId by rememberSaveable { mutableStateOf<String?>(null) }
-            var manageMembersGroupId by rememberSaveable { mutableStateOf<String?>(null) }
+            var groupsSheet by rememberSaveable { mutableStateOf<String?>(null) }
+            var groupsSheetGroupId by rememberSaveable { mutableStateOf<String?>(null) }
+            val activeSheet = groupsSheet?.let { name ->
+                runCatching { GroupsSheet.valueOf(name) }.getOrNull()
+            }
             GroupsScreen(
                 container = container,
-                onCreateGroup = { showCreateGroup = true },
+                onCreateGroup = {
+                    groupsSheetGroupId = null
+                    groupsSheet = GroupsSheet.CREATE.name
+                },
                 onOpenGroup = { groupId ->
                     navController.navigate(NavRoutes.GroupOverview.route(groupId))
                 },
-                onEditGroup = { groupId -> editGroupId = groupId },
-                onManageMembers = { groupId -> manageMembersGroupId = groupId },
+                onEditGroup = { groupId ->
+                    groupsSheetGroupId = groupId
+                    groupsSheet = GroupsSheet.EDIT.name
+                },
+                onManageMembers = { groupId ->
+                    groupsSheetGroupId = groupId
+                    groupsSheet = GroupsSheet.MANAGE.name
+                },
             )
             // S9: the create-group form is a bottom sheet, not a screen.
-            if (showCreateGroup) {
+            if (activeSheet == GroupsSheet.CREATE) {
                 SheetScoped {
                     CreateGroupSheet(
                         container = container,
-                        onDismiss = { showCreateGroup = false },
+                        onDismiss = { groupsSheet = null },
                         onGroupCreated = { groupId ->
-                            showCreateGroup = false
+                            groupsSheet = null
                             navController.navigate(NavRoutes.GroupOverview.route(groupId)) {
                                 popUpTo(NavRoutes.Groups.ROUTE)
                             }
@@ -107,22 +120,26 @@ fun OweOweNavHost(
                 }
             }
             // S7 / S8: actions on the selected group open as sheets over the list.
-            editGroupId?.let { groupId ->
-                SheetScoped {
-                    EditGroupSheet(
-                        container = container,
-                        groupId = groupId,
-                        onDismiss = { editGroupId = null },
-                    )
+            if (activeSheet == GroupsSheet.EDIT) {
+                groupsSheetGroupId?.let { groupId ->
+                    SheetScoped {
+                        EditGroupSheet(
+                            container = container,
+                            groupId = groupId,
+                            onDismiss = { groupsSheet = null },
+                        )
+                    }
                 }
             }
-            manageMembersGroupId?.let { groupId ->
-                SheetScoped {
-                    ManageMembersSheet(
-                        container = container,
-                        groupId = groupId,
-                        onDismiss = { manageMembersGroupId = null },
-                    )
+            if (activeSheet == GroupsSheet.MANAGE) {
+                groupsSheetGroupId?.let { groupId ->
+                    SheetScoped {
+                        ManageMembersSheet(
+                            container = container,
+                            groupId = groupId,
+                            onDismiss = { groupsSheet = null },
+                        )
+                    }
                 }
             }
         }

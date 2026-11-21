@@ -21,6 +21,7 @@ import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.components.UiMessage
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonRes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -60,6 +62,7 @@ data class GroupTransaction(
 
 data class GroupOverviewUiState(
     val loading: Boolean = true,
+    val loadError: Boolean = false,
     val offline: Boolean = false,
     val notFound: Boolean = false,
     val me: User? = null,
@@ -126,6 +129,11 @@ class GroupDetailsViewModel(
                     buildUiState(inputs, group, users, expenses)
                 }
             }
+        }
+        .catch { e ->
+            if (e is CancellationException) throw e
+            _messages.tryEmit(UiMessage(R.string.common_error_generic))
+            emit(GroupOverviewUiState(loading = false, loadError = true))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupOverviewUiState())
 

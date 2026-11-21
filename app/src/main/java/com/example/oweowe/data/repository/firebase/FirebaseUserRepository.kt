@@ -13,7 +13,6 @@ import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -34,8 +33,7 @@ class FirebaseUserRepository(
                 flowOf(null)
             } else {
                 users.document(uid).snapshots()
-                    .map { snapshot -> snapshot.toObject(User::class.java)?.copy(uid = snapshot.id) }
-                    .catch { emit(null) }
+                    .map { snapshot -> if (snapshot.exists()) snapshot.toUser() else null }
             }
         }
 
@@ -45,8 +43,10 @@ class FirebaseUserRepository(
         val flows = chunks.map { chunk ->
             users.whereIn(FieldPath.documentId(), chunk)
                 .snapshots()
-                .map { snapshot -> snapshot.documents.mapNotNull { it.toObject(User::class.java)?.copy(uid = it.id) } }
-                .catch { emit(emptyList()) }
+                .map { snapshot ->
+                    val found = snapshot.documents.map { it.toUser() }.associateBy { it.uid }
+                    chunk.map { uid -> found[uid] ?: User(uid = uid, fullName = uid) }
+                }
         }
         return combine(flows) { lists -> lists.flatMap { it }.distinctBy { it.uid } }
     }

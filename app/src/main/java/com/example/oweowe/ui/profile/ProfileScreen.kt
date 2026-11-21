@@ -59,6 +59,7 @@ import com.example.oweowe.ui.components.AppSwitch
 import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
 import com.example.oweowe.ui.components.InitialsAvatar
+import com.example.oweowe.ui.components.ErrorState
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SettingsCard
@@ -205,6 +206,7 @@ fun ProfileContent(
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
+            state.loadError -> ErrorState(message = stringResource(R.string.common_error_generic))
             state.me == null -> EmptyState(title = stringResource(R.string.profile_not_signed_in))
             else -> Column(
                 Modifier
@@ -466,6 +468,22 @@ private fun ProfileLoadingPreview() {
     MaterialTheme {
         ProfileContent(
             state = ProfileUiState(loading = true),
+            editState = EditProfileUiState(),
+            onNameChange = {},
+            onEmailChange = {},
+            onSave = {},
+            onSetPushEnabled = {},
+            onSignOut = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Profile load error")
+@Composable
+private fun ProfileLoadErrorPreview() {
+    MaterialTheme {
+        ProfileContent(
+            state = ProfileUiState(loading = false, loadError = true),
             editState = EditProfileUiState(),
             onNameChange = {},
             onEmailChange = {},

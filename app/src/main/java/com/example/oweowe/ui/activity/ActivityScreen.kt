@@ -35,6 +35,7 @@ import com.example.oweowe.data.model.User
 import com.example.oweowe.domain.formatKr
 import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
+import com.example.oweowe.ui.components.ErrorState
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.MyBalanceText
 import com.example.oweowe.ui.components.OfflineBanner
@@ -62,6 +63,7 @@ fun ActivityContent(
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
+            state.loadError -> ErrorState(message = stringResource(R.string.common_error_generic))
             state.transactions.isEmpty() && state.reminders.isEmpty() -> EmptyState(
                 title = stringResource(R.string.activity_empty_title),
                 message = stringResource(R.string.activity_empty_message),
@@ -196,5 +198,13 @@ private fun ActivityEmptyPreview() {
 private fun ActivityLoadingPreview() {
     MaterialTheme {
         ActivityContent(state = ActivityUiState(loading = true))
+    }
+}
+
+@Preview(showBackground = true, name = "Activity load error")
+@Composable
+private fun ActivityLoadErrorPreview() {
+    MaterialTheme {
+        ActivityContent(state = ActivityUiState(loading = false, loadError = true))
     }
 }

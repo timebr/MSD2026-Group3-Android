@@ -17,9 +17,11 @@ import com.example.oweowe.data.repository.GroupRepository
 import com.example.oweowe.data.repository.ReminderRepository
 import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.domain.BalanceCalculator
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -44,6 +46,7 @@ data class ReminderRow(
 
 data class ActivityUiState(
     val loading: Boolean = true,
+    val loadError: Boolean = false,
     val offline: Boolean = false,
     val me: User? = null,
     val totalSpentOre: Long = 0,
@@ -81,6 +84,10 @@ class ActivityViewModel(
                 val reminders = reminderRepository.observeRemindersForMe()
                 combine(expenses, users, reminders) { e, u, r -> buildUiState(inputs, e, u, r) }
             }
+        }
+        .catch { e ->
+            if (e is CancellationException) throw e
+            emit(ActivityUiState(loading = false, loadError = true))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActivityUiState())
 

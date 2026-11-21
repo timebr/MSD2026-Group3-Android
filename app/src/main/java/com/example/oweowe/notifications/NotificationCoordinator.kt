@@ -8,9 +8,11 @@ import com.example.oweowe.data.repository.GroupRepository
 import com.example.oweowe.data.repository.ReminderRepository
 import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.sync.SyncStatusStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
@@ -91,6 +93,8 @@ class NotificationCoordinator(
                     reminders = reminders,
                 )
             }
+        }.catch { e ->
+            if (e is CancellationException) throw e
         }.collect { input ->
             val actions = mutableListOf<NotificationAction>()
             input.expenses.groupBy { it.groupId }.forEach { (groupId, expenses) ->

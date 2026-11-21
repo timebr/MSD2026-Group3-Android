@@ -17,10 +17,12 @@ import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.domain.formatOreForInput
 import com.example.oweowe.domain.parseKr
 import com.example.oweowe.ui.components.WriteState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -49,6 +51,7 @@ private data class AddExpenseForm(
 
 data class AddExpenseUiState(
     val loading: Boolean = true,
+    val loadError: Boolean = false,
     val offline: Boolean = false,
     val me: User? = null,
     val groups: List<Group> = emptyList(),
@@ -136,6 +139,10 @@ class AddExpenseViewModel(
                 userRepository.observeUsers(group.memberIds)
                     .map { users -> toUiState(inputs, group, users.sortedBy { it.fullName }) }
             }
+        }
+        .catch { e ->
+            if (e is CancellationException) throw e
+            emit(AddExpenseUiState(loading = false, loadError = true))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AddExpenseUiState())
 

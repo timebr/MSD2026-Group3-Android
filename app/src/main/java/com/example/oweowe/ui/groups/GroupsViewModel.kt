@@ -15,6 +15,7 @@ import com.example.oweowe.data.repository.GroupRepository
 import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.components.WriteState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -42,6 +44,7 @@ data class GroupSummary(
 /** S4: my groups, dynamic from the repository (FR3). */
 data class GroupsUiState(
     val loading: Boolean = true,
+    val loadError: Boolean = false,
     val offline: Boolean = false,
     val groups: List<GroupSummary> = emptyList(),
     /**
@@ -86,16 +89,22 @@ class GroupsViewModel(
             } else {
                 combine(inputs.groups.map { group -> summary(group, inputs.meId) }) { rows ->
                     val summaries = rows.map { it.summary }
+                    val selected = summaries.find { it.group.id == inputs.selectedId }
+                        ?: rows.maxByOrNull { it.lastActivity }?.summary
+                    selected?.let { selectedGroupStore?.select(it.group.id) }
                     GroupsUiState(
                         loading = false,
                         offline = !inputs.online,
                         groups = summaries,
                         // The user's pick wins; otherwise the most recent activity (S3 Home rule).
-                        selectedGroup = summaries.find { it.group.id == inputs.selectedId }
-                            ?: rows.maxByOrNull { it.lastActivity }?.summary,
+                        selectedGroup = selected,
                     )
                 }
             }
+        }
+        .catch { e ->
+            if (e is CancellationException) throw e
+            emit(GroupsUiState(loading = false, loadError = true))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupsUiState())
 

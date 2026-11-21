@@ -1,6 +1,5 @@
 package com.example.oweowe.ui.groups
 
-import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -57,8 +56,8 @@ import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SignedAmount
 import com.example.oweowe.ui.components.TransactionRow
 import com.example.oweowe.ui.components.asString
+import com.example.oweowe.ui.components.localImageUri
 import com.example.oweowe.ui.components.rememberImageBitmap
-import java.io.File
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 
@@ -168,6 +167,7 @@ fun GroupOverviewContent(
         when {
             state.loading -> LoadingState()
             state.notFound -> ErrorState(message = stringResource(R.string.group_overview_not_found))
+            state.loadError -> ErrorState(message = stringResource(R.string.common_error_generic))
             else -> GroupOverviewList(
                 state = state,
                 onEditGroup = onEditGroup,
@@ -417,7 +417,7 @@ private fun DeleteExpenseDialog(
 /** FR10: the receipt image of one transaction, read-only. */
 @Composable
 private fun ReceiptDialog(path: String, onDismiss: () -> Unit) {
-    val bitmap = rememberImageBitmap(Uri.fromFile(File(path)))
+    val bitmap = rememberImageBitmap(localImageUri(path))
     Dialog(onDismissRequest = onDismiss) {
         Card {
             Column(Modifier.padding(16.dp)) {
@@ -536,6 +536,22 @@ private fun GroupOverviewNotFoundPreview() {
     MaterialTheme {
         GroupOverviewContent(
             state = GroupOverviewUiState(loading = false, notFound = true),
+            onEditGroup = {},
+            onManageMembers = {},
+            onAddExpense = {},
+            onEditExpense = {},
+            onDeleteExpense = {},
+            onRemind = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Group overview load error")
+@Composable
+private fun GroupOverviewLoadErrorPreview() {
+    MaterialTheme {
+        GroupOverviewContent(
+            state = GroupOverviewUiState(loading = false, loadError = true),
             onEditGroup = {},
             onManageMembers = {},
             onAddExpense = {},
