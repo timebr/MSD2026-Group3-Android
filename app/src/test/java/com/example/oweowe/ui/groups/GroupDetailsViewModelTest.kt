@@ -4,6 +4,8 @@ import com.example.oweowe.data.connectivity.AlwaysOnlineObserver
 import com.example.oweowe.data.model.ExpenseType
 import com.example.oweowe.data.model.User
 import com.example.oweowe.data.repository.AppResult
+import com.example.oweowe.data.model.Group
+import com.example.oweowe.data.repository.GroupRepository
 import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.data.repository.fake.FakeBackend
 import com.example.oweowe.data.repository.fake.FakeExpenseRepository
@@ -39,10 +41,11 @@ class GroupDetailsViewModelTest {
         db: FakeBackend,
         groupId: String = SeedData.FLAT,
         userRepository: UserRepository = FakeUserRepository(db),
+        groupRepository: GroupRepository = FakeGroupRepository(db),
     ) = GroupDetailsViewModel(
         groupId = groupId,
         userRepository = userRepository,
-        groupRepository = FakeGroupRepository(db),
+        groupRepository = groupRepository,
         expenseRepository = FakeExpenseRepository(db),
         reminderRepository = FakeReminderRepository(db),
         connectivity = AlwaysOnlineObserver,
@@ -151,6 +154,24 @@ class GroupDetailsViewModelTest {
         val anna = state.members.first { it.user.uid == SeedData.ANNA }
         assertEquals(SeedData.ANNA, anna.user.fullName)
         assertTrue(anna.iOweOre > 0)
+    }
+
+    /**
+     * NFR: the edit form listens to the group in a second collector. A failed
+     * read there used to escape a viewModelScope launch and crash the app.
+     */
+    @Test
+    fun groupReadError_doesNotCrashTheEditFormCollector() = runTest {
+        val db = backend(backgroundScope)
+        val failingGroups = object : GroupRepository by FakeGroupRepository(db) {
+            override fun observeGroup(groupId: String): Flow<Group?> = flow { throw IOException("boom") }
+        }
+
+        val viewModel = viewModel(db, groupRepository = failingGroups)
+        viewModel.uiState.first { it.loadError }
+        advanceUntilIdle()
+
+        assertTrue(!viewModel.editState.value.loadedFromGroup)
     }
 
     @Test

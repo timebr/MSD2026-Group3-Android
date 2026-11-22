@@ -192,6 +192,10 @@ class GroupDetailsViewModel(
         viewModelScope.launch {
             groupRepository.observeGroup(groupId)
                 .filterNotNull()
+                // Read errors must not escape a viewModelScope launch: that would
+                // crash the app (NFR). The overview itself shows the retryable
+                // error state, so the edit form just stays unprefilled.
+                .catch { e -> if (e is CancellationException) throw e }
                 .collect { group ->
                     _editState.update {
                         if (it.loadedFromGroup) it else it.prefilled(group)
