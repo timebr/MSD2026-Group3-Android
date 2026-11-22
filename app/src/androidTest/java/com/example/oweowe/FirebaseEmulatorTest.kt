@@ -3,6 +3,7 @@ package com.example.oweowe
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.example.oweowe.data.model.User
 import com.example.oweowe.data.repository.AppResult
 import com.example.oweowe.data.repository.ErrorReason
 import com.example.oweowe.data.repository.firebase.FirebaseAuthRepository
@@ -17,6 +18,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -36,22 +38,23 @@ class FirebaseEmulatorTest {
 
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
 
-    private fun emulatorApp(): FirebaseApp {
-        FirebaseApp.getApps(context).firstOrNull { it.name == APP_NAME }?.let { return it }
+    private fun emulatorApp(name: String, apiKey: String = "fake-api-key"): FirebaseApp {
+        FirebaseApp.getApps(context).firstOrNull { it.name == name }?.let { return it }
         return FirebaseApp.initializeApp(
             context,
             FirebaseOptions.Builder()
-                .setApiKey("fake-api-key")
+                .setApiKey(apiKey)
                 .setApplicationId("1:1234567890:android:emulator")
                 .setProjectId("demo-oweowe")
                 .build(),
-            APP_NAME,
+            name,
         )!!
     }
 
     @Test
     fun authGroupsExpensesAndRemindersWorkAgainstTheEmulator() = runBlocking {
-        val app = emulatorApp()
+        // Own app name: app.delete() must not delete the app another test in this class reuses.
+        val app = emulatorApp("auth-test-${System.nanoTime()}")
         val auth = FirebaseAuth.getInstance(app)
         val db = FirebaseFirestore.getInstance(app)
         auth.useEmulator(HOST, 9099)
@@ -167,8 +170,63 @@ class FirebaseEmulatorTest {
         app.delete()
     }
 
+    @Test
+    fun observeUsersReturnsPlaceholdersForMissingProfilesAndChunksMoreThanThirtyIds() = runBlocking {
+        // Own app name and API key: app.delete() leaves a stale useEmulator
+        // listener in Firebase Auth's API-key map, which would break the other
+        // test in this class if it reused the key.
+        val app = emulatorApp(
+            "observe-users-test-${System.nanoTime()}",
+            "observe-users-key-${System.nanoTime()}",
+        )
+        val auth = FirebaseAuth.getInstance(app)
+        val db = FirebaseFirestore.getInstance(app)
+        auth.useEmulator(HOST, 9099)
+        db.useEmulator(HOST, 8080)
+
+        val authRepo = FirebaseAuthRepository(auth, db)
+        val usersRepo = FirebaseUserRepository(auth, db)
+        val groupsRepo = FirebaseGroupRepository(auth, db)
+
+        val stamp = System.currentTimeMillis()
+        val email = "observer$stamp@test.dk"
+        val password = "password123"
+
+        auth.signOut()
+        assertEquals(AppResult.Success(Unit), authRepo.register("Observer", email, password, "+45 44 44 44 44"))
+        val myUid = auth.currentUser!!.uid
+        val ghostUid = "ghost-$stamp"
+
+        // users/{uid} may not be deleted (firestore.rules). Instead, make a group
+        // name a UID that never registered, which creates the "profile missing" state.
+        val groupId = (groupsRepo.createGroup("Ghost flat", "Test") as AppResult.Success).value
+        db.collection("groups").document(groupId)
+            .update("memberIds", listOf(myUid, ghostUid))
+            .await()
+        db.waitForPendingWrites().await()
+
+        val users = withTimeout(15_000) {
+            usersRepo.observeUsers(listOf(myUid, ghostUid)).first { it.size == 2 }
+        }
+        val byUid = users.associateBy { it.uid }
+        assertEquals(listOf(myUid, ghostUid), users.map { it.uid })
+        assertEquals("Observer", byUid.getValue(myUid).fullName)
+        assertEquals(email, byUid.getValue(myUid).email)
+        assertEquals(User.UNKNOWN_FULL_NAME, byUid.getValue(ghostUid).fullName)
+        assertEquals(ghostUid, byUid.getValue(ghostUid).uid)
+
+        // 31 ids are split into whereIn chunks of at most 30.
+        val manyUids = (1..30).map { "ghost-$stamp-$it" } + myUid
+        val all = withTimeout(15_000) {
+            usersRepo.observeUsers(manyUids).first { it.size == 31 }
+        }
+        assertEquals(manyUids.toSet(), all.map { it.uid }.toSet())
+
+        auth.signOut()
+        app.delete()
+    }
+
     private companion object {
-        const val APP_NAME = "emulator-test"
         const val HOST = "127.0.0.1"
     }
 }
