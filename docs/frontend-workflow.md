@@ -37,6 +37,12 @@ part.
   `StateFlow`.
 - Model loading, content, empty and error explicitly. One-off effects
   (snackbar, navigation) are separate from the persistent state.
+- The error state is retryable, not terminal: use
+  `flow.retryOnReadError(retryTrigger) { LoadError }` from
+  `ui/components/ReadErrorRetry.kt`, expose `retry()`, and pass it to
+  `ErrorState(onRetry = …)`. Never swallow a read error in the repository, and
+  never let one escape a `viewModelScope` launch. See the read path in
+  [architecture.md](architecture.md).
 - The ViewModel never holds a `Context` and never calls the remote data
   source.
 
@@ -44,8 +50,9 @@ part.
 
 - If a `Fake…` repository exists under
   `app/src/main/java/com/example/oweowe/data/repository/fake/`, use it. Its
-  `FakeBackend` has delay and failure knobs, so loading and error states can
-  be reproduced on purpose.
+  `FakeBackend` has delay and failure knobs (`delayMs`, `failNextWith` for
+  writes, `failReadsWith` for reads), so loading and load-error states can be
+  reproduced on purpose.
 - If no fake exists yet, keep previews self-contained with local sample data.
 - Never call Firebase, a DAO or a repository from a `@Composable`.
 

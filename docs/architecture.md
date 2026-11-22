@@ -114,9 +114,15 @@ device-local paths for now (see the limitation below).
 ## Repository interfaces
 
 The interfaces are the contract between frontend and backend. Each has a
-`Fake…` implementation with seed data (plus a switchable delay and error) and
-a `Firestore…` implementation. Read functions return a `Flow`; errors are
-returned as named results, not thrown.
+`Fake…` implementation with seed data (plus switchable delay and error knobs)
+and a `Firestore…` implementation.
+
+- Suspend operations (writes, lookups such as "find user by email") return an
+  `AppResult` with a named `ErrorReason`; they never throw.
+- Read functions return a `Flow`. A failing listener is **not** hidden by the
+  repository: it propagates to the collector, so a screen can tell "empty"
+  from "could not read". Every collector must therefore handle it — including
+  the one-shot collectors in `init` blocks (see the read path below).
 
 | Interface | Responsibility | Screens |
 | --- | --- | --- |
@@ -142,11 +148,28 @@ returned as named results, not thrown.
 5. When an own document switches from pending (or failed) to synced, the
    `NotificationCoordinator` posts "… was synced in the background" (NFR5).
 
-## Read path (NFR3)
+## Read path (NFR3, NFR4)
 
 - Screens observe repository `Flow`s backed by Firestore snapshot listeners.
 - Firestore serves the last known data from its offline cache when the device
-  is offline; the UI shows an offline banner.
+  is offline; the UI shows an offline banner. Serving the cache does not throw,
+  so offline still shows data rather than the error state.
+- A listener error (e.g. Security Rules, a revoked session) reaches the
+  ViewModel as a thrown exception. `retryOnReadError`
+  (`ui/components/ReadErrorRetry.kt`) turns it into the screen's `loadError`
+  state and then waits: each `retry()` tap re-collects the same cold flows and
+  restores the data. The error state keeps the offline flag from the last good
+  state, so the banner does not disappear.
+- All six screens with reads implement that state (`loading`, content, empty,
+  `loadError` with a Retry button, plus `@Preview`s). Two collectors are not
+  part of a `UiState` and handle the error themselves: the S7 edit-form
+  pre-fill and the "remind" amount lookup report it as a message, the NFR5
+  background-sync watcher skips the snackbar, and `NotificationCoordinator`
+  retries after 30 s instead of ending notifications for the session.
+- To demonstrate the error path without Firebase, the developer options on S6
+  arm `FakeBackend.failReadsWith` ("Fail every read"); the fake repositories
+  then throw like a failed listener, so the error state and its Retry button
+  can be shown and recorded.
 
 ## Notifications (FR7, FR8)
 
