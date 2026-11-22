@@ -142,6 +142,29 @@ class AddExpenseViewModelTest {
         assertEquals(listOf(SeedData.TIM), state.members.map { it.uid })
     }
 
+    /**
+     * FR5: the split must never contain members of the group the user just left.
+     * While the new group's members load, the form shows the new group with no
+     * members (and the submit button disabled) instead of the old member set.
+     */
+    @Test
+    fun switchingGroup_neverKeepsThePreviousGroupsMembersInTheSplit() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(
+            db,
+            userRepository = ControlledUserRepository(FakeUserRepository(db)),
+        )
+        viewModel.warmUp()
+        assertEquals(3, viewModel.uiState.value.splitAmong.size)
+
+        val second = (FakeGroupRepository(db).createGroup("Trip", "") as AppResult.Success<String>).value
+        viewModel.selectGroup(second)
+
+        val state = viewModel.uiState.first { it.selectedGroupId == second }
+        assertEquals(emptyList<String>(), state.members.map { it.uid })
+        assertEquals(emptySet<String>(), state.splitAmong)
+    }
+
     @Test
     fun submit_invalidAmount_marksTheFieldInsteadOfSubmitting() = runTest {
         val db = backend(backgroundScope)
