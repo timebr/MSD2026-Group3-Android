@@ -50,7 +50,11 @@ fun ActivityScreen(container: AppContainer) {
     Scaffold(
         topBar = { AppTopBar(title = stringResource(R.string.activity_title)) },
     ) { padding ->
-        ActivityContent(state = state, modifier = Modifier.padding(padding))
+        ActivityContent(
+            state = state,
+            onRetry = viewModel::retry,
+            modifier = Modifier.padding(padding),
+        )
     }
 }
 
@@ -58,12 +62,17 @@ fun ActivityScreen(container: AppContainer) {
 fun ActivityContent(
     state: ActivityUiState,
     modifier: Modifier = Modifier,
+    /** NFR4: shown next to the load error, so the user is not stuck. */
+    onRetry: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
-            state.loadError -> ErrorState(message = stringResource(R.string.common_error_generic))
+            state.loadError -> ErrorState(
+                message = stringResource(R.string.common_error_generic),
+                onRetry = onRetry,
+            )
             state.transactions.isEmpty() && state.reminders.isEmpty() -> EmptyState(
                 title = stringResource(R.string.activity_empty_title),
                 message = stringResource(R.string.activity_empty_message),

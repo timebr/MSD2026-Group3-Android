@@ -21,6 +21,7 @@ import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.components.UiMessage
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonRes
+import com.example.oweowe.ui.components.retryOnReadError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -100,6 +101,9 @@ class GroupDetailsViewModel(
 
     private val busy = MutableStateFlow(false)
 
+    /** NFR4: one tap on "Try again" in the error state re-collects the reads. */
+    private val retryTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     private val _messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 8)
     val messages: SharedFlow<UiMessage> = _messages.asSharedFlow()
 
@@ -130,12 +134,19 @@ class GroupDetailsViewModel(
                 }
             }
         }
-        .catch { e ->
-            if (e is CancellationException) throw e
-            _messages.tryEmit(UiMessage(R.string.common_error_generic))
-            emit(GroupOverviewUiState(loading = false, loadError = true))
+        .retryOnReadError(retryTrigger) {
+            GroupOverviewUiState(
+                loading = false,
+                offline = uiState.value.offline,
+                loadError = true,
+            )
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupOverviewUiState())
+
+    /** NFR4: retry the reads behind the S4 group overview error state. */
+    fun retry() {
+        retryTrigger.tryEmit(Unit)
+    }
 
     private fun buildUiState(
         inputs: DetailsInputs,

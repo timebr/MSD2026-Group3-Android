@@ -73,6 +73,7 @@ fun GroupsScreen(
             onSelectGroup = viewModel::selectGroup,
             onEditGroup = onEditGroup,
             onManageMembers = onManageMembers,
+            onRetry = viewModel::retry,
             modifier = Modifier.padding(padding),
         )
     }
@@ -86,12 +87,17 @@ fun GroupsContent(
     onEditGroup: (String) -> Unit,
     onManageMembers: (String) -> Unit,
     modifier: Modifier = Modifier,
+    /** NFR4: shown next to the load error, so the user is not stuck. */
+    onRetry: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
-            state.loadError -> ErrorState(message = stringResource(R.string.common_error_generic))
+            state.loadError -> ErrorState(
+                message = stringResource(R.string.common_error_generic),
+                onRetry = onRetry,
+            )
             state.groups.isEmpty() -> EmptyState(
                 title = stringResource(R.string.groups_empty_title),
                 message = stringResource(R.string.groups_empty_message),

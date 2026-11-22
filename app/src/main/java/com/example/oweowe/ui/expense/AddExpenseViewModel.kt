@@ -17,12 +17,12 @@ import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.domain.formatOreForInput
 import com.example.oweowe.domain.parseKr
 import com.example.oweowe.ui.components.WriteState
-import kotlinx.coroutines.CancellationException
+import com.example.oweowe.ui.components.retryOnReadError
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -91,6 +91,9 @@ class AddExpenseViewModel(
 
     private val form = MutableStateFlow(AddExpenseForm(selectedGroupId = initialGroupId))
     private val writeState = MutableStateFlow<WriteState>(WriteState.Idle)
+
+    /** NFR4: one tap on "Try again" in the error state re-collects the reads. */
+    private val retryTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     private val selectedGroupId = form.map { it.selectedGroupId }.distinctUntilChanged()
 
@@ -163,11 +166,15 @@ class AddExpenseViewModel(
                 ?: inputs.groups.firstOrNull()
             toUiState(inputs, group, inputs.members)
         }
-        .catch { e ->
-            if (e is CancellationException) throw e
-            emit(AddExpenseUiState(loading = false, loadError = true))
+        .retryOnReadError(retryTrigger) {
+            AddExpenseUiState(loading = false, offline = uiState.value.offline, loadError = true)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AddExpenseUiState())
+
+    /** NFR4: retry the reads behind the S11 error state. */
+    fun retry() {
+        retryTrigger.tryEmit(Unit)
+    }
 
     private fun toUiState(
         inputs: AddExpenseInputs,

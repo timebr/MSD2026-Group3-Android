@@ -128,6 +128,7 @@ fun AddExpenseSheet(
                 receiptUri = null
                 receiptName = null
             },
+            onRetry = viewModel::retry,
             onSubmit = {
                 val picked = receiptUri
                 when {
@@ -170,12 +171,17 @@ fun AddExpenseContent(
     cameraAvailable: Boolean = true,
     /** Edit screens override the submit label; adding uses "Split expense". */
     submitLabel: String? = null,
+    /** NFR4: shown next to the load error, so the user is not stuck. */
+    onRetry: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
-            state.loadError -> ErrorState(message = stringResource(R.string.common_error_generic))
+            state.loadError -> ErrorState(
+                message = stringResource(R.string.common_error_generic),
+                onRetry = onRetry,
+            )
             state.expenseNotFound -> ErrorState(
                 message = stringResource(R.string.edit_expense_not_found),
             )

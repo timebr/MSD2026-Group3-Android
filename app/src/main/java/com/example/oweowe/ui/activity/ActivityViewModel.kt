@@ -17,11 +17,11 @@ import com.example.oweowe.data.repository.GroupRepository
 import com.example.oweowe.data.repository.ReminderRepository
 import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.domain.BalanceCalculator
-import kotlinx.coroutines.CancellationException
+import com.example.oweowe.ui.components.retryOnReadError
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -68,6 +68,9 @@ class ActivityViewModel(
     connectivity: ConnectivityObserver,
 ) : ViewModel() {
 
+    /** NFR4: one tap on "Try again" in the error state re-collects the reads. */
+    private val retryTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     val uiState: StateFlow<ActivityUiState> = combine(
         userRepository.observeMe(),
         groupRepository.observeMyGroups(),
@@ -85,11 +88,16 @@ class ActivityViewModel(
                 combine(expenses, users, reminders) { e, u, r -> buildUiState(inputs, e, u, r) }
             }
         }
-        .catch { e ->
-            if (e is CancellationException) throw e
-            emit(ActivityUiState(loading = false, loadError = true))
+        .retryOnReadError(retryTrigger) {
+            // Keep the offline banner from the last good state (NFR3).
+            ActivityUiState(loading = false, offline = uiState.value.offline, loadError = true)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ActivityUiState())
+
+    /** NFR4: retry the reads behind the S5 error state. */
+    fun retry() {
+        retryTrigger.tryEmit(Unit)
+    }
 
     private fun emptyActivity(inputs: ActivityInputs) = ActivityUiState(
         loading = false,

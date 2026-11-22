@@ -22,7 +22,7 @@ import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.components.UiMessage
 import com.example.oweowe.ui.components.errorReasonRes
-import kotlinx.coroutines.CancellationException
+import com.example.oweowe.ui.components.retryOnReadError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,7 +31,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -83,6 +82,9 @@ class HomeViewModel(
 ) : ViewModel() {
 
     private val reminderBusy = MutableStateFlow(false)
+
+    /** NFR4: one tap on "Try again" in the error state re-collects the reads. */
+    private val retryTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     private val _messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 8)
     val messages: SharedFlow<UiMessage> = _messages.asSharedFlow()
@@ -136,11 +138,13 @@ class HomeViewModel(
                 }
             }
         }
-        .catch { e ->
-            if (e is CancellationException) throw e
-            emit(HomeUiState(loading = false, loadError = true))
-        }
+        .retryOnReadError(retryTrigger) { HomeUiState(loading = false, loadError = true) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+
+    /** NFR4: retry the reads behind the S3 error state. */
+    fun retry() {
+        retryTrigger.tryEmit(Unit)
+    }
 
     private fun buildUiState(
         inputs: HomeInputs,

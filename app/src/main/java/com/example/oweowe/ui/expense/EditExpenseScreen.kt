@@ -109,6 +109,7 @@ fun EditExpenseSheet(
                 receiptName = null
                 receiptChanged = true
             },
+            onRetry = viewModel::retry,
             onSubmit = {
                 val picked = receiptUri
                 when {

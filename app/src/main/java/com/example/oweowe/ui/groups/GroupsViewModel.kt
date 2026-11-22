@@ -15,7 +15,7 @@ import com.example.oweowe.data.repository.GroupRepository
 import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.components.WriteState
-import kotlinx.coroutines.CancellationException
+import com.example.oweowe.ui.components.retryOnReadError
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,7 +25,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -75,6 +74,9 @@ class GroupsViewModel(
     /** The group the user marked as selected on S4; mirrors the shared store for S3 Home. */
     private val selectedGroupId = MutableStateFlow<String?>(selectedGroupStore?.selectedGroupId?.value)
 
+    /** NFR4: one tap on "Try again" in the error state re-collects the reads. */
+    private val retryTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     val uiState: StateFlow<GroupsUiState> = combine(
         groupRepository.observeMyGroups(),
         userRepository.observeMe(),
@@ -102,11 +104,15 @@ class GroupsViewModel(
                 }
             }
         }
-        .catch { e ->
-            if (e is CancellationException) throw e
-            emit(GroupsUiState(loading = false, loadError = true))
+        .retryOnReadError(retryTrigger) {
+            GroupsUiState(loading = false, offline = uiState.value.offline, loadError = true)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupsUiState())
+
+    /** NFR4: retry the reads behind the S4 error state. */
+    fun retry() {
+        retryTrigger.tryEmit(Unit)
+    }
 
     /** S4: the user chooses which group the selected-group card shows (and S3 uses). */
     fun selectGroup(groupId: String) {

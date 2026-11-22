@@ -121,6 +121,7 @@ fun GroupOverviewScreen(
                     receiptToShow = receipt
                 }
             },
+            onRetry = viewModel::retry,
             modifier = Modifier.padding(padding),
         )
     }
@@ -161,13 +162,18 @@ fun GroupOverviewContent(
     modifier: Modifier = Modifier,
     onSettleUp: (MemberRow) -> Unit = {},
     onTransactionClick: (Expense) -> Unit = {},
+    /** NFR4: shown next to the load error, so the user is not stuck. */
+    onRetry: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
             state.notFound -> ErrorState(message = stringResource(R.string.group_overview_not_found))
-            state.loadError -> ErrorState(message = stringResource(R.string.common_error_generic))
+            state.loadError -> ErrorState(
+                message = stringResource(R.string.common_error_generic),
+                onRetry = onRetry,
+            )
             else -> GroupOverviewList(
                 state = state,
                 onEditGroup = onEditGroup,
