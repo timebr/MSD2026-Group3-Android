@@ -12,12 +12,16 @@ import kotlinx.coroutines.flow.update
 class FakeUserRepository(private val db: FakeBackend) : UserRepository {
 
     override fun observeMe(): Flow<User?> =
-        combine(db.currentUserId, db.users) { uid, users -> users.find { it.uid == uid } }
+        db.read(combine(db.currentUserId, db.users) { uid, users -> users.find { it.uid == uid } })
 
     override fun observeUsers(uids: List<String>): Flow<List<User>> =
-        db.users.map { users ->
-            uids.distinct().map { uid -> users.find { it.uid == uid } ?: User(uid = uid, fullName = User.UNKNOWN_FULL_NAME) }
-        }
+        db.read(
+            db.users.map { users ->
+                uids.distinct().map { uid ->
+                    users.find { it.uid == uid } ?: User(uid = uid, fullName = User.UNKNOWN_FULL_NAME)
+                }
+            },
+        )
 
     override suspend fun updateProfile(
         fullName: String,

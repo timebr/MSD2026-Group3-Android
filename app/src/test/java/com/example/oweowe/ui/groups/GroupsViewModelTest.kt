@@ -4,9 +4,7 @@ import com.example.oweowe.SelectedGroupStore
 import com.example.oweowe.data.connectivity.AlwaysOfflineObserver
 import com.example.oweowe.data.connectivity.AlwaysOnlineObserver
 import com.example.oweowe.data.connectivity.ConnectivityObserver
-import com.example.oweowe.data.model.Group
 import com.example.oweowe.data.repository.ErrorReason
-import com.example.oweowe.data.repository.GroupRepository
 import com.example.oweowe.data.repository.fake.FakeBackend
 import com.example.oweowe.data.repository.fake.FakeExpenseRepository
 import com.example.oweowe.data.repository.fake.FakeGroupRepository
@@ -15,12 +13,8 @@ import com.example.oweowe.data.repository.fake.SeedData
 import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.MainDispatcherRule
 import com.example.oweowe.ui.components.WriteState
-import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -44,9 +38,8 @@ class GroupsViewModelTest {
         db: FakeBackend,
         observer: ConnectivityObserver,
         selectedGroupStore: SelectedGroupStore? = null,
-        groupRepository: GroupRepository = FakeGroupRepository(db),
     ) = GroupsViewModel(
-        groupRepository = groupRepository,
+        groupRepository = FakeGroupRepository(db),
         userRepository = FakeUserRepository(db),
         expenseRepository = FakeExpenseRepository(db),
         connectivity = observer,
@@ -68,26 +61,18 @@ class GroupsViewModelTest {
 
     /**
      * NFR4: a failed read must not dead-end S4. The error state offers a retry
-     * that re-collects the repository flow and brings the cached data back.
+     * that re-collects the repository flows and brings the cached data back.
      */
     @Test
     fun readError_isRecoverableWithTheRetryAction() = runTest {
         val db = backend(backgroundScope)
-        var failuresLeft = 1
-        val flakyGroups = object : GroupRepository by FakeGroupRepository(db) {
-            override fun observeMyGroups(): Flow<List<Group>> = flow {
-                if (failuresLeft > 0) {
-                    failuresLeft--
-                    throw IOException("boom")
-                }
-                emitAll(FakeGroupRepository(db).observeMyGroups())
-            }
-        }
-        val viewModel = viewModel(db, AlwaysOnlineObserver, groupRepository = flakyGroups)
+        db.failReadsWith = ErrorReason.NETWORK          // the fake's read-failure knob
+        val viewModel = viewModel(db, AlwaysOnlineObserver)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
 
         assertTrue(viewModel.uiState.first { it.loadError }.loadError)
 
+        db.failReadsWith = null
         viewModel.retry()
 
         val recovered = viewModel.uiState.first { !it.loading && !it.loadError }

@@ -243,4 +243,5 @@
     <string name="dev_options_title">Developer options</string>
     <string name="dev_fail_next_write">Fail the next write (simulate offline)</string>
     <string name="dev_slow_network">Slow network (3 second delay)</string>
+    <string name="dev_fail_reads">Fail every read (show the load error + retry)</string>
 </resources>

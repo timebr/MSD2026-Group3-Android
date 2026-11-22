@@ -15,12 +15,14 @@ import kotlinx.coroutines.flow.update
 class FakeGroupRepository(private val db: FakeBackend) : GroupRepository {
 
     override fun observeMyGroups(): Flow<List<Group>> =
-        combine(db.currentUserId, db.groups) { uid, groups ->
-            groups.filter { uid != null && uid in it.memberIds }.sortedBy { it.name }
-        }
+        db.read(
+            combine(db.currentUserId, db.groups) { uid, groups ->
+                groups.filter { uid != null && uid in it.memberIds }.sortedBy { it.name }
+            },
+        )
 
     override fun observeGroup(groupId: String): Flow<Group?> =
-        db.groups.map { groups -> groups.find { it.id == groupId } }
+        db.read(db.groups.map { groups -> groups.find { it.id == groupId } })
 
     override suspend fun createGroup(name: String, description: String): AppResult<String> {
         db.simulateCall()?.let { return AppResult.Error(it) }
