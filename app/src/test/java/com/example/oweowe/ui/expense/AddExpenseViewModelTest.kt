@@ -2,8 +2,10 @@ package com.example.oweowe.ui.expense
 
 import com.example.oweowe.data.connectivity.AlwaysOnlineObserver
 import com.example.oweowe.data.model.SyncStatus
+import com.example.oweowe.data.model.User
 import com.example.oweowe.data.repository.AppResult
 import com.example.oweowe.data.repository.ErrorReason
+import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.data.repository.fake.FakeBackend
 import com.example.oweowe.data.repository.fake.FakeExpenseRepository
 import com.example.oweowe.data.repository.fake.FakeGroupRepository
@@ -12,7 +14,10 @@ import com.example.oweowe.data.repository.fake.SeedData
 import com.example.oweowe.ui.MainDispatcherRule
 import com.example.oweowe.ui.components.WriteState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -26,6 +31,29 @@ class AddExpenseViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
+    private class ControlledUserRepository(
+        private val delegate: UserRepository,
+        private var emissionsLeft: Int = 1,
+    ) : UserRepository {
+        override fun observeMe(): Flow<User?> = delegate.observeMe()
+
+        override fun observeUsers(uids: List<String>): Flow<List<User>> = flow {
+            if (emissionsLeft > 0) {
+                emissionsLeft--
+                emitAll(delegate.observeUsers(uids))
+            }
+        }
+
+        override suspend fun updateProfile(
+            fullName: String,
+            email: String,
+            photoUri: String?,
+        ): AppResult<Unit> = delegate.updateProfile(fullName, email, photoUri)
+
+        override suspend fun setPushEnabled(enabled: Boolean): AppResult<Unit> =
+            delegate.setPushEnabled(enabled)
+    }
+
     private fun backend(scope: CoroutineScope) =
         FakeBackend(startSignedInAs = SeedData.TIM, scope = scope).apply { delayMs = 0 }
 
@@ -33,11 +61,12 @@ class AddExpenseViewModelTest {
         db: FakeBackend,
         initialGroupId: String? = null,
         expenseId: String? = null,
+        userRepository: UserRepository = FakeUserRepository(db),
     ) = AddExpenseViewModel(
         initialGroupId = initialGroupId,
         expenseId = expenseId,
         expenseRepository = FakeExpenseRepository(db),
-        userRepository = FakeUserRepository(db),
+        userRepository = userRepository,
         groupRepository = FakeGroupRepository(db),
         connectivity = AlwaysOnlineObserver,
     )
@@ -70,6 +99,47 @@ class AddExpenseViewModelTest {
 
         assertEquals(second, state.selectedGroupId)
         assertEquals(listOf(SeedData.TIM), state.members.map { it.uid })   // the creator is alone
+    }
+
+    @Test
+    fun typingUpdatesTextImmediately_whenProfilesStopArriving() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(
+            db,
+            userRepository = ControlledUserRepository(FakeUserRepository(db)),
+        )
+        viewModel.warmUp()
+
+        viewModel.updateDescription("1")
+        assertEquals("1", viewModel.uiState.value.description)
+
+        viewModel.updateAmount("10")
+        assertEquals("10", viewModel.uiState.value.amountText)
+
+        viewModel.updateCategory("Food")
+        assertEquals("Food", viewModel.uiState.value.category)
+    }
+
+    @Test
+    fun selectingAnotherGroup_stillLoadsMembers_whenTypingDoesNotConsumeProfileEmissions() = runTest {
+        val db = backend(backgroundScope)
+        val viewModel = viewModel(
+            db,
+            userRepository = ControlledUserRepository(FakeUserRepository(db), emissionsLeft = 2),
+        )
+        viewModel.warmUp()
+
+        viewModel.updateDescription("Trip")
+        assertEquals("Trip", viewModel.uiState.value.description)
+
+        val second = (FakeGroupRepository(db).createGroup("Trip", "") as AppResult.Success<String>).value
+        viewModel.selectGroup(second)
+
+        val state = viewModel.uiState.first {
+            it.selectedGroupId == second && it.members.map { member -> member.uid } == listOf(SeedData.TIM)
+        }
+        assertEquals("Trip", state.description)
+        assertEquals(listOf(SeedData.TIM), state.members.map { it.uid })
     }
 
     @Test

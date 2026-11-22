@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -91,6 +92,26 @@ class AddExpenseViewModel(
     private val form = MutableStateFlow(AddExpenseForm(selectedGroupId = initialGroupId))
     private val writeState = MutableStateFlow<WriteState>(WriteState.Idle)
 
+    private val selectedGroupId = form.map { it.selectedGroupId }.distinctUntilChanged()
+
+    private val meAndOnline = combine(userRepository.observeMe(), connectivity.isOnline) { me, online ->
+        me to online
+    }
+
+    private val membersFlow =
+        combine(groupRepository.observeMyGroups(), selectedGroupId) { groups, selectedId ->
+            groups.find { it.id == selectedId } ?: groups.firstOrNull()
+        }
+            .distinctUntilChanged { old, new -> old?.memberIds == new?.memberIds }
+            .flatMapLatest { group ->
+                if (group == null) {
+                    flowOf(emptyList<User>())
+                } else {
+                    userRepository.observeUsers(group.memberIds)
+                        .map { users -> users.sortedBy { it.fullName } }
+                }
+            }
+
     init {
         val groupId = initialGroupId
         if (expenseId == null) {
@@ -122,23 +143,25 @@ class AddExpenseViewModel(
     }
 
     val uiState: StateFlow<AddExpenseUiState> = combine(
-        userRepository.observeMe(),
+        meAndOnline,
         groupRepository.observeMyGroups(),
-        connectivity.isOnline,
         form,
         writeState,
-    ) { me, groups, online, currentForm, currentWriteState ->
-        AddExpenseInputs(me, groups, online, currentForm, currentWriteState)
+        membersFlow,
+    ) { meAndOnline, groups, currentForm, currentWriteState, members ->
+        AddExpenseInputs(
+            me = meAndOnline.first,
+            groups = groups,
+            online = meAndOnline.second,
+            form = currentForm,
+            writeState = currentWriteState,
+            members = members,
+        )
     }
-        .flatMapLatest { inputs ->
+        .map { inputs ->
             val group = inputs.groups.find { it.id == inputs.form.selectedGroupId }
                 ?: inputs.groups.firstOrNull()
-            if (group == null) {
-                flowOf(toUiState(inputs, group = null, members = emptyList()))
-            } else {
-                userRepository.observeUsers(group.memberIds)
-                    .map { users -> toUiState(inputs, group, users.sortedBy { it.fullName }) }
-            }
+            toUiState(inputs, group, inputs.members)
         }
         .catch { e ->
             if (e is CancellationException) throw e
@@ -285,6 +308,7 @@ class AddExpenseViewModel(
         val online: Boolean,
         val form: AddExpenseForm,
         val writeState: WriteState,
+        val members: List<User>,
     )
 
     companion object {
