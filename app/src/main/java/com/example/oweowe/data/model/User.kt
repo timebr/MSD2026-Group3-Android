@@ -18,4 +18,13 @@ data class User(
      * is uploaded); with Firebase it becomes the download URL from Storage.
      */
     val photoUri: String? = null,
-)
+) {
+    companion object {
+        /**
+         * Shown for a group member whose profile document has not arrived (or is
+         * gone). Balances and splits still use [uid]; only the label is a stand-in,
+         * so the list must not leak the raw Firestore UID as a name.
+         */
+        const val UNKNOWN_FULL_NAME = "Unknown member"
+    }
+}

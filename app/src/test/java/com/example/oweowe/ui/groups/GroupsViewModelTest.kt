@@ -1,5 +1,6 @@
 package com.example.oweowe.ui.groups
 
+import com.example.oweowe.SelectedGroupStore
 import com.example.oweowe.data.connectivity.AlwaysOfflineObserver
 import com.example.oweowe.data.connectivity.AlwaysOnlineObserver
 import com.example.oweowe.data.connectivity.ConnectivityObserver
@@ -20,6 +21,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -32,11 +34,16 @@ class GroupsViewModelTest {
     private fun backend(scope: CoroutineScope) =
         FakeBackend(startSignedInAs = SeedData.TIM, scope = scope).apply { delayMs = 0 }
 
-    private fun viewModel(db: FakeBackend, observer: ConnectivityObserver) = GroupsViewModel(
+    private fun viewModel(
+        db: FakeBackend,
+        observer: ConnectivityObserver,
+        selectedGroupStore: SelectedGroupStore? = null,
+    ) = GroupsViewModel(
         groupRepository = FakeGroupRepository(db),
         userRepository = FakeUserRepository(db),
         expenseRepository = FakeExpenseRepository(db),
         connectivity = observer,
+        selectedGroupStore = selectedGroupStore,
     )
 
     @Test
@@ -50,6 +57,36 @@ class GroupsViewModelTest {
         assertEquals(listOf(SeedData.FLAT), state.groups.map { it.group.id })
         val expected = BalanceCalculator.balances(db.expenses.value.filter { it.groupId == SeedData.FLAT })[SeedData.TIM]
         assertEquals(expected, state.groups.single().myNetOre)
+    }
+
+    /**
+     * NFR4: a failed read must not dead-end S4. The error state offers a retry
+     * that re-collects the repository flows and brings the cached data back.
+     */
+    @Test
+    fun readError_isRecoverableWithTheRetryAction() = runTest {
+        val db = backend(backgroundScope)
+        db.failReadsWith = ErrorReason.NETWORK          // the fake's read-failure knob
+        val viewModel = viewModel(db, AlwaysOnlineObserver)
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
+
+        assertTrue(viewModel.uiState.first { it.loadError }.loadError)
+
+        db.failReadsWith = null
+        viewModel.retry()
+
+        val recovered = viewModel.uiState.first { !it.loading && !it.loadError }
+        assertEquals(listOf(SeedData.FLAT), recovered.groups.map { it.group.id })
+    }
+
+    @Test
+    fun fallbackGroup_isMirroredToTheSelectedGroupStore() = runTest {
+        val db = backend(backgroundScope)
+        val store = SelectedGroupStore()
+
+        viewModel(db, AlwaysOnlineObserver, store).uiState.first { !it.loading }
+
+        assertEquals(SeedData.FLAT, store.selectedGroupId.value)
     }
 
     @Test

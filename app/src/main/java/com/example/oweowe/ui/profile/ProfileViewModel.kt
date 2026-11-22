@@ -16,6 +16,8 @@ import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.ui.components.UiMessage
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonRes
+import com.example.oweowe.ui.components.retryOnReadError
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -33,6 +35,7 @@ import kotlinx.coroutines.launch
 /** S6 Profile. */
 data class ProfileUiState(
     val loading: Boolean = true,
+    val loadError: Boolean = false,
     val offline: Boolean = false,
     val me: User? = null,
     val pushBusy: Boolean = false,
@@ -64,6 +67,9 @@ class ProfileViewModel(
 
     private val pushBusy = MutableStateFlow(false)
 
+    /** NFR4: one tap on "Try again" in the error state re-collects the reads. */
+    private val retryTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     private val _messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 8)
     val messages: SharedFlow<UiMessage> = _messages.asSharedFlow()
 
@@ -73,7 +79,14 @@ class ProfileViewModel(
         pushBusy,
     ) { me, online, busy ->
         ProfileUiState(loading = false, offline = !online, me = me, pushBusy = busy)
+    }.retryOnReadError(retryTrigger) {
+        ProfileUiState(loading = false, offline = uiState.value.offline, loadError = true)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProfileUiState())
+
+    /** NFR4: retry the reads behind the S6 error state. */
+    fun retry() {
+        retryTrigger.tryEmit(Unit)
+    }
 
     private val _editState = MutableStateFlow(EditProfileUiState())
     val editState: StateFlow<EditProfileUiState> = _editState.asStateFlow()
@@ -81,19 +94,25 @@ class ProfileViewModel(
     init {
         // Pre-fill the edit form from the profile once it arrives.
         viewModelScope.launch {
-            val me = userRepository.observeMe().filterNotNull().first()
-            _editState.update {
-                if (it.loadedFromMe) {
-                    it
-                } else {
-                    it.copy(
-                        fullName = me.fullName,
-                        email = me.email,
-                        phone = me.phone,
-                        photoUri = me.photoUri,
-                        loadedFromMe = true,
-                    )
+            try {
+                val me = userRepository.observeMe().filterNotNull().first()
+                _editState.update {
+                    if (it.loadedFromMe) {
+                        it
+                    } else {
+                        it.copy(
+                            fullName = me.fullName,
+                            email = me.email,
+                            phone = me.phone,
+                            photoUri = me.photoUri,
+                            loadedFromMe = true,
+                        )
+                    }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                _messages.tryEmit(UiMessage(R.string.common_error_generic))
             }
         }
     }

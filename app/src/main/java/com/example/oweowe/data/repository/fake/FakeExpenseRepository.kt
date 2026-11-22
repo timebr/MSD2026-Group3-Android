@@ -16,9 +16,11 @@ import kotlinx.coroutines.launch
 class FakeExpenseRepository(private val db: FakeBackend) : ExpenseRepository {
 
     override fun observeExpenses(groupId: String): Flow<List<Expense>> =
-        db.expenses.map { all ->
-            all.filter { it.groupId == groupId }.sortedByDescending { it.createdAt }
-        }
+        db.read(
+            db.expenses.map { all ->
+                all.filter { it.groupId == groupId }.sortedByDescending { it.createdAt }
+            },
+        )
 
     override suspend fun addExpense(
         groupId: String, description: String, category: String,

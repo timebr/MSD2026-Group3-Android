@@ -73,6 +73,13 @@ queue). The UI only ever observes state from a `Flow`.
 - Reads are repository `Flow`s backed by Firestore snapshot listeners, which
   also serve the last cached data offline. The UI never renders a network
   response directly.
+- Repositories do not hide a failed read: the error reaches the collector, and
+  the ViewModel turns it into the screen's `loadError` state with
+  `ui/components/ReadErrorRetry.kt` (`retryOnReadError` + `retry()`), so the
+  user can recover without leaving the screen. Every collector needs this,
+  including one-shot `init` collectors and background watchers: an exception
+  escaping `viewModelScope` crashes the app. When adding a repository read,
+  add it to a `UiState` chain or handle the error at the collector.
 - Writes go through a repository, which writes to Firestore without waiting
   for the server; Firestore shows the change locally and syncs it later.
 - Balances and splits are computed only by the functions in `domain/`, so the
@@ -119,9 +126,10 @@ feedback. Every feature that writes data follows this pattern:
    on forms, with a visible error reason (NFR4).
 4. When a write that was pending or failed succeeds in the background,
    `NotificationCoordinator` posts a local notification (NFR5).
-5. The Fake… repositories keep a switchable delay/failure/sync simulation so
-   pending, failed and synced states can be demonstrated and unit-tested
-   without Firebase.
+5. The Fake… repositories keep a switchable delay/failure/sync simulation
+   (`FakeBackend.delayMs`, `failNextWith` for writes, `failReadsWith` for
+   reads) so loading, pending, failed, synced and load-error states can be
+   demonstrated and unit-tested without Firebase.
 6. Notifications are local and only work while the app process is alive; real
    push when the app is closed would need FCM plus Cloud Functions (Spark plan
    has neither). This limitation is documented in the architecture doc.

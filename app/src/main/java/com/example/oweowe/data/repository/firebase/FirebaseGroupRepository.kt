@@ -17,7 +17,6 @@ import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -41,19 +40,17 @@ class FirebaseGroupRepository(
                     .snapshots()
                     .map { snapshot ->
                         snapshot.documents
-                            .mapNotNull { it.toObject(Group::class.java)?.copy(id = it.id) }
+                            .map { it.toGroup() }
                             .sortedBy { it.name }
                     }
-                    .catch { emit(emptyList()) }
             }
         }
 
     override fun observeGroup(groupId: String): Flow<Group?> =
         groups.document(groupId).snapshots()
             .map { snapshot ->
-                if (!snapshot.exists()) null else snapshot.toObject(Group::class.java)?.copy(id = snapshot.id)
+                if (!snapshot.exists()) null else snapshot.toGroup()
             }
-            .catch { emit(null) }
 
     override suspend fun createGroup(name: String, description: String): AppResult<String> {
         val uid = auth.currentUser?.uid ?: return AppResult.Error(ErrorReason.NOT_ALLOWED)
@@ -88,7 +85,7 @@ class FirebaseGroupRepository(
         val user = try {
             val doc = users.whereEqualTo("email", email.trim().lowercase()).limit(1).get().await()
                 .documents.firstOrNull()
-            doc?.toObject(User::class.java)?.copy(uid = doc.id)
+            doc?.toUser()
         } catch (e: Exception) {
             return AppResult.Error(e.toErrorReason())
         } ?: return AppResult.Error(ErrorReason.NO_ACCOUNT_WITH_EMAIL)
@@ -103,7 +100,7 @@ class FirebaseGroupRepository(
         val user = try {
             val doc = users.whereEqualTo("phoneNormalized", normalized).limit(1).get().await()
                 .documents.firstOrNull()
-            doc?.toObject(User::class.java)?.copy(uid = doc.id)
+            doc?.toUser()
         } catch (e: Exception) {
             return AppResult.Error(e.toErrorReason())
         } ?: return AppResult.Error(ErrorReason.NO_ACCOUNT_WITH_PHONE)

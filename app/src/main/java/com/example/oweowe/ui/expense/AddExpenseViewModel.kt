@@ -17,15 +17,21 @@ import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.domain.formatOreForInput
 import com.example.oweowe.domain.parseKr
 import com.example.oweowe.ui.components.WriteState
+import com.example.oweowe.ui.components.retryOnReadError
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -45,10 +51,13 @@ private data class AddExpenseForm(
     val prefilled: Boolean = false,
     /** The requested expense no longer exists, is a settlement or is not in the group. */
     val expenseNotFound: Boolean = false,
+    /** Reading the stored expense failed; [AddExpenseViewModel.retry] tries again. */
+    val prefillFailed: Boolean = false,
 )
 
 data class AddExpenseUiState(
     val loading: Boolean = true,
+    val loadError: Boolean = false,
     val offline: Boolean = false,
     val me: User? = null,
     val groups: List<Group> = emptyList(),
@@ -77,7 +86,7 @@ data class AddExpenseUiState(
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AddExpenseViewModel(
-    initialGroupId: String?,
+    private val initialGroupId: String?,
     private val expenseId: String? = null,
     private val expenseRepository: ExpenseRepository,
     userRepository: UserRepository,
@@ -88,6 +97,42 @@ class AddExpenseViewModel(
     private val form = MutableStateFlow(AddExpenseForm(selectedGroupId = initialGroupId))
     private val writeState = MutableStateFlow<WriteState>(WriteState.Idle)
 
+    /** NFR4: one tap on "Try again" in the error state re-collects the reads. */
+    private val retryTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    private val selectedGroupId = form.map { it.selectedGroupId }.distinctUntilChanged()
+
+    private val meAndOnline = combine(userRepository.observeMe(), connectivity.isOnline) { me, online ->
+        me to online
+    }
+
+    /**
+     * FR4: the groups are read once and shared, so the chip row and the member
+     * query below do not open two snapshot listeners on the same query.
+     */
+    private val groups = groupRepository.observeMyGroups()
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
+
+    /**
+     * FR4/NFR2: the group the form acts on, emitted together with its members.
+     * Only a change of group or of its member list re-subscribes the member
+     * query; typing updates [form] alone, so the controlled text fields never
+     * wait for Firestore to answer.
+     */
+    private val selection: Flow<GroupSelection> =
+        combine(groups, selectedGroupId) { all, selectedId ->
+            all.find { it.id == selectedId } ?: all.firstOrNull()
+        }
+            .distinctUntilChanged { old, new -> old?.id == new?.id && old?.memberIds == new?.memberIds }
+            .flatMapLatest { group ->
+                if (group == null) {
+                    flowOf(GroupSelection(null, emptyList()))
+                } else {
+                    userRepository.observeUsers(group.memberIds)
+                        .map { users -> GroupSelection(group, users.sortedBy { it.fullName }) }
+                }
+            }
+
     init {
         val groupId = initialGroupId
         if (expenseId == null) {
@@ -95,55 +140,85 @@ class AddExpenseViewModel(
         } else if (groupId == null) {
             form.update { it.copy(prefilled = true, expenseNotFound = true) }
         } else {
-            viewModelScope.launch {
-                val expense = expenseRepository.observeExpenses(groupId).first()
+            prefillExpense(groupId)
+        }
+    }
+
+    private fun prefillExpense(groupId: String) {
+        viewModelScope.launch {
+            val expense = try {
+                expenseRepository.observeExpenses(groupId).first()
                     .find { it.id == expenseId && it.type == ExpenseType.EXPENSE }
-                form.update {
-                    if (expense == null) {
-                        it.copy(prefilled = true, expenseNotFound = true)
-                    } else {
-                        it.copy(
-                            description = expense.description,
-                            category = expense.category,
-                            amountText = formatOreForInput(expense.amountOre),
-                            payerId = expense.paidBy,
-                            splitAmong = expense.splitAmong.toSet(),
-                            selectedGroupId = expense.groupId,
-                            receiptUri = expense.receiptUri,
-                            prefilled = true,
-                        )
-                    }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // NFR4: a failed read is not "this expense does not exist"; the
+                // form shows the retryable error state instead.
+                form.update { it.copy(prefilled = true, prefillFailed = true) }
+                return@launch
+            }
+            form.update {
+                if (expense == null) {
+                    it.copy(prefilled = true, expenseNotFound = true)
+                } else {
+                    it.copy(
+                        description = expense.description,
+                        category = expense.category,
+                        amountText = formatOreForInput(expense.amountOre),
+                        payerId = expense.paidBy,
+                        splitAmong = expense.splitAmong.toSet(),
+                        selectedGroupId = expense.groupId,
+                        receiptUri = expense.receiptUri,
+                        prefilled = true,
+                    )
                 }
             }
         }
     }
 
     val uiState: StateFlow<AddExpenseUiState> = combine(
-        userRepository.observeMe(),
-        groupRepository.observeMyGroups(),
-        connectivity.isOnline,
+        meAndOnline,
+        groups,
         form,
         writeState,
-    ) { me, groups, online, currentForm, currentWriteState ->
-        AddExpenseInputs(me, groups, online, currentForm, currentWriteState)
+        selection,
+    ) { meAndOnline, groups, currentForm, currentWriteState, selection ->
+        AddExpenseInputs(
+            me = meAndOnline.first,
+            groups = groups,
+            online = meAndOnline.second,
+            form = currentForm,
+            writeState = currentWriteState,
+            selection = selection,
+        )
     }
-        .flatMapLatest { inputs ->
-            val group = inputs.groups.find { it.id == inputs.form.selectedGroupId }
-                ?: inputs.groups.firstOrNull()
-            if (group == null) {
-                flowOf(toUiState(inputs, group = null, members = emptyList()))
-            } else {
-                userRepository.observeUsers(group.memberIds)
-                    .map { users -> toUiState(inputs, group, users.sortedBy { it.fullName }) }
-            }
+        .map { inputs -> toUiState(inputs) }
+        .retryOnReadError(retryTrigger) {
+            AddExpenseUiState(loading = false, offline = uiState.value.offline, loadError = true)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AddExpenseUiState())
 
-    private fun toUiState(
-        inputs: AddExpenseInputs,
-        group: Group?,
-        members: List<User>,
-    ): AddExpenseUiState {
+    /** NFR4: retry the reads behind the S11 error state. */
+    fun retry() {
+        val groupId = initialGroupId
+        if (form.value.prefillFailed && groupId != null) {
+            form.update { it.copy(prefilled = false, prefillFailed = false) }
+            prefillExpense(groupId)
+        }
+        retryTrigger.tryEmit(Unit)
+    }
+
+    private fun toUiState(inputs: AddExpenseInputs): AddExpenseUiState {
+        val group = inputs.groups.find { it.id == inputs.form.selectedGroupId }
+            ?: inputs.groups.firstOrNull()
+        // While the newly selected group's members are still loading, show none
+        // rather than the previous group's: a split must never include someone
+        // who is not in the group being edited (FR5).
+        val members = if (inputs.selection.group?.id == group?.id) {
+            inputs.selection.members
+        } else {
+            emptyList()
+        }
         val payerId = inputs.form.payerId ?: inputs.me?.uid
         val splitAmong = inputs.form.splitAmong.ifEmpty {
             members.mapTo(mutableSetOf()) { it.uid }
@@ -170,6 +245,7 @@ class AddExpenseViewModel(
             splitAmong = splitAmong,
             receiptUri = inputs.form.receiptUri,
             expenseNotFound = inputs.form.expenseNotFound,
+            loadError = inputs.form.prefillFailed,
             writeState = inputs.writeState,
         )
     }
@@ -278,7 +354,11 @@ class AddExpenseViewModel(
         val online: Boolean,
         val form: AddExpenseForm,
         val writeState: WriteState,
+        val selection: GroupSelection,
     )
+
+    /** FR4: a group and the members it had when the query was started. */
+    private data class GroupSelection(val group: Group?, val members: List<User>)
 
     companion object {
         fun factory(

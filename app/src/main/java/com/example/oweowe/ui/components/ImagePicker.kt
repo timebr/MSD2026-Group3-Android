@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -88,6 +89,16 @@ fun canTakePhoto(context: Context): Boolean =
 
 private fun fileProviderAuthority(context: Context) = "${context.packageName}.fileprovider"
 
+internal fun localImagePath(path: String?): String? {
+    if (path.isNullOrBlank()) return null
+    if (path.contains("://") || path.startsWith("content:", ignoreCase = true)) return null
+    val file = File(path)
+    return if (file.isAbsolute || path.startsWith("/")) path else null
+}
+
+internal fun localImageUri(path: String?): Uri? =
+    localImagePath(path)?.let { Uri.fromFile(File(it)) }
+
 /** ACTION_IMAGE_CAPTURE plus the write grant the camera app needs for the output Uri. */
 private class TakePictureContract : ActivityResultContract<Uri, Boolean>() {
     override fun createIntent(context: Context, input: Uri): Intent =
@@ -124,15 +135,21 @@ fun displayName(context: Context, uri: Uri): String? = try {
 }
 
 private fun decodeDownscaled(context: Context, uri: Uri): ImageBitmap? {
-    val resolver = context.contentResolver
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-    val largest = maxOf(bounds.outWidth, bounds.outHeight)
-    var sample = 1
-    while (largest / sample > MAX_IMAGE_DIMENSION) sample *= 2
-    val options = BitmapFactory.Options().apply { inSampleSize = sample }
-    val bitmap = resolver.openInputStream(uri)?.use {
-        BitmapFactory.decodeStream(it, null, options)
-    } ?: return null
-    return bitmap.asImageBitmap()
+    return try {
+        val resolver = context.contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+            ?: return null
+        val largest = maxOf(bounds.outWidth, bounds.outHeight)
+        var sample = 1
+        while (largest / sample > MAX_IMAGE_DIMENSION) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        resolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, options)
+        }?.asImageBitmap()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Exception) {
+        null
+    }
 }

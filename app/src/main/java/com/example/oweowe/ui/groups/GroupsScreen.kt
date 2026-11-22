@@ -35,6 +35,7 @@ import com.example.oweowe.data.model.Group
 import com.example.oweowe.domain.formatKr
 import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
+import com.example.oweowe.ui.components.ErrorState
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
 import androidx.compose.foundation.shape.CircleShape
@@ -72,6 +73,7 @@ fun GroupsScreen(
             onSelectGroup = viewModel::selectGroup,
             onEditGroup = onEditGroup,
             onManageMembers = onManageMembers,
+            onRetry = viewModel::retry,
             modifier = Modifier.padding(padding),
         )
     }
@@ -85,11 +87,17 @@ fun GroupsContent(
     onEditGroup: (String) -> Unit,
     onManageMembers: (String) -> Unit,
     modifier: Modifier = Modifier,
+    /** NFR4: shown next to the load error, so the user is not stuck. */
+    onRetry: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
+            state.loadError -> ErrorState(
+                message = stringResource(R.string.common_error_generic),
+                onRetry = onRetry,
+            )
             state.groups.isEmpty() -> EmptyState(
                 title = stringResource(R.string.groups_empty_title),
                 message = stringResource(R.string.groups_empty_message),
@@ -292,6 +300,20 @@ private fun GroupsOfflinePreview() {
     MaterialTheme {
         GroupsContent(
             state = GroupsUiState(loading = false, offline = true, groups = emptyList()),
+            onOpenGroup = {},
+            onSelectGroup = {},
+            onEditGroup = {},
+            onManageMembers = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Groups load error")
+@Composable
+private fun GroupsLoadErrorPreview() {
+    MaterialTheme {
+        GroupsContent(
+            state = GroupsUiState(loading = false, loadError = true),
             onOpenGroup = {},
             onSelectGroup = {},
             onEditGroup = {},

@@ -21,6 +21,8 @@ import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.components.UiMessage
 import com.example.oweowe.ui.components.WriteState
 import com.example.oweowe.ui.components.errorReasonRes
+import com.example.oweowe.ui.components.retryOnReadError
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -60,6 +63,7 @@ data class GroupTransaction(
 
 data class GroupOverviewUiState(
     val loading: Boolean = true,
+    val loadError: Boolean = false,
     val offline: Boolean = false,
     val notFound: Boolean = false,
     val me: User? = null,
@@ -97,6 +101,9 @@ class GroupDetailsViewModel(
 
     private val busy = MutableStateFlow(false)
 
+    /** NFR4: one tap on "Try again" in the error state re-collects the reads. */
+    private val retryTrigger = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
     private val _messages = MutableSharedFlow<UiMessage>(extraBufferCapacity = 8)
     val messages: SharedFlow<UiMessage> = _messages.asSharedFlow()
 
@@ -127,7 +134,19 @@ class GroupDetailsViewModel(
                 }
             }
         }
+        .retryOnReadError(retryTrigger) {
+            GroupOverviewUiState(
+                loading = false,
+                offline = uiState.value.offline,
+                loadError = true,
+            )
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GroupOverviewUiState())
+
+    /** NFR4: retry the reads behind the S4 group overview error state. */
+    fun retry() {
+        retryTrigger.tryEmit(Unit)
+    }
 
     private fun buildUiState(
         inputs: DetailsInputs,
@@ -184,6 +203,10 @@ class GroupDetailsViewModel(
         viewModelScope.launch {
             groupRepository.observeGroup(groupId)
                 .filterNotNull()
+                // Read errors must not escape a viewModelScope launch: that would
+                // crash the app (NFR). The overview itself shows the retryable
+                // error state, so the edit form just stays unprefilled.
+                .catch { e -> if (e is CancellationException) throw e }
                 .collect { group ->
                     _editState.update {
                         if (it.loadedFromGroup) it else it.prefilled(group)
@@ -289,7 +312,16 @@ class GroupDetailsViewModel(
         val group = uiState.value.group ?: return
         busy.value = true
         viewModelScope.launch {
-            val expenses = expenseRepository.observeExpenses(group.id).first()
+            // NFR: a read error must not escape this launch and crash the app.
+            val expenses = try {
+                expenseRepository.observeExpenses(group.id).first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                busy.value = false
+                _messages.emit(UiMessage(R.string.common_error_generic))
+                return@launch
+            }
             val amount = BalanceCalculator.amountOwed(
                 expenses,
                 from = member.user.uid,

@@ -12,7 +12,6 @@ import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.snapshots
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -62,7 +61,6 @@ class FirebaseReminderRepository(
                     .whereEqualTo("toUserId", uid)
                     .snapshots()
                     .map { snapshot -> snapshot.documents.map { it.toReminder() } }
-                    .catch { emit(emptyList()) }
             }
         }
 }

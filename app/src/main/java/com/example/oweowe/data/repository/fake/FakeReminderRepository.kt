@@ -26,5 +26,9 @@ class FakeReminderRepository(private val db: FakeBackend) : ReminderRepository {
     }
 
     override fun observeRemindersForMe(): Flow<List<Reminder>> =
-        combine(db.currentUserId, db.reminders) { uid, reminders -> reminders.filter { it.toUserId == uid } }
+        db.read(
+            combine(db.currentUserId, db.reminders) { uid, reminders ->
+                reminders.filter { it.toUserId == uid }
+            },
+        )
 }

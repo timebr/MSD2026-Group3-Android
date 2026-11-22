@@ -8,13 +8,16 @@ import com.example.oweowe.data.repository.GroupRepository
 import com.example.oweowe.data.repository.ReminderRepository
 import com.example.oweowe.data.repository.UserRepository
 import com.example.oweowe.sync.SyncStatusStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.launch
 
 /**
@@ -91,6 +94,12 @@ class NotificationCoordinator(
                     reminders = reminders,
                 )
             }
+        }.retryWhen { cause, _ ->
+            // A transient listener failure must not end notifications for the rest
+            // of the session; stop() cancels the job, which ends the retry loop.
+            if (cause is CancellationException) return@retryWhen false
+            delay(RETRY_AFTER_READ_ERROR_MS)
+            true
         }.collect { input ->
             val actions = mutableListOf<NotificationAction>()
             input.expenses.groupBy { it.groupId }.forEach { (groupId, expenses) ->
@@ -104,6 +113,11 @@ class NotificationCoordinator(
             actions += decider.onReminders(input.reminders, input.userNames, input.groupNames)
             if (pushEnabled) actions.forEach(presenter::show)
         }
+    }
+
+    private companion object {
+        /** NFR4: wait before re-reading after a failed listener, instead of giving up. */
+        const val RETRY_AFTER_READ_ERROR_MS = 30_000L
     }
 
     private data class NotificationsInput(

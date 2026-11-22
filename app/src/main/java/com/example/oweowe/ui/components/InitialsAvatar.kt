@@ -1,6 +1,5 @@
 package com.example.oweowe.ui.components
 
-import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -17,7 +16,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import java.io.File
 
 /**
  * Avatar (FR1, FR2): the profile photo when one is saved, otherwise a circle
@@ -34,7 +32,7 @@ fun InitialsAvatar(
     size: Int = 40,
     photoPath: String? = null,
 ) {
-    val photo = rememberImageBitmap(photoPath?.let { Uri.fromFile(File(it)) })
+    val photo = rememberImageBitmap(localImageUri(photoPath))
     val initials = name.trim()
         .split(Regex("\\s+"))
         .filter { it.isNotEmpty() }

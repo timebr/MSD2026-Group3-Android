@@ -106,6 +106,7 @@ fun HomeScreen(
             onRemind = homeViewModel::sendReminder,
             onSettleUp = { member -> memberToSettle = member },
             onGoToGroups = onGoToGroups,
+            onRetry = homeViewModel::retry,
             modifier = Modifier.padding(padding),
         )
     }
@@ -129,11 +130,17 @@ fun HomeContent(
     onGoToGroups: () -> Unit,
     modifier: Modifier = Modifier,
     onSettleUp: (MemberBalance) -> Unit = {},
+    /** NFR4: shown next to the load error, so the user is not stuck. */
+    onRetry: () -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
+            state.loadError -> ErrorState(
+                message = stringResource(R.string.common_error_generic),
+                onRetry = onRetry,
+            )
             state.me == null -> ErrorStatePlaceholder()
             state.group == null -> EmptyState(
                 title = stringResource(R.string.home_no_groups_title),
@@ -401,6 +408,19 @@ private fun HomeOfflinePreview() {
     MaterialTheme {
         HomeContent(
             state = HomeUiState(loading = false, offline = true),
+            onAddExpense = {},
+            onRemind = {},
+            onGoToGroups = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Home load error")
+@Composable
+private fun HomeLoadErrorPreview() {
+    MaterialTheme {
+        HomeContent(
+            state = HomeUiState(loading = false, loadError = true),
             onAddExpense = {},
             onRemind = {},
             onGoToGroups = {},

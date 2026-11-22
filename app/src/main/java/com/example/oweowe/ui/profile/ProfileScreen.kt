@@ -59,6 +59,7 @@ import com.example.oweowe.ui.components.AppSwitch
 import com.example.oweowe.ui.components.AppTopBar
 import com.example.oweowe.ui.components.EmptyState
 import com.example.oweowe.ui.components.InitialsAvatar
+import com.example.oweowe.ui.components.ErrorState
 import com.example.oweowe.ui.components.LoadingState
 import com.example.oweowe.ui.components.OfflineBanner
 import com.example.oweowe.ui.components.SettingsCard
@@ -175,6 +176,7 @@ fun ProfileScreen(container: AppContainer) {
             pickedPhoto = pickedPhoto,
             onPickPhoto = pickPhoto,
             developerOptions = { DeveloperOptions(container) },
+            onRetry = viewModel::retry,
             modifier = Modifier.padding(padding),
         )
     }
@@ -198,6 +200,8 @@ fun ProfileContent(
     pickedPhoto: String? = null,
     onPickPhoto: () -> Unit = {},
     developerOptions: @Composable () -> Unit = {},
+    /** NFR4: shown next to the load error, so the user is not stuck. */
+    onRetry: () -> Unit = {},
 ) {
     val picked = rememberImageBitmap(pickedPhoto?.toUri())
 
@@ -205,6 +209,10 @@ fun ProfileContent(
         if (state.offline) OfflineBanner()
         when {
             state.loading -> LoadingState()
+            state.loadError -> ErrorState(
+                message = stringResource(R.string.common_error_generic),
+                onRetry = onRetry,
+            )
             state.me == null -> EmptyState(title = stringResource(R.string.profile_not_signed_in))
             else -> Column(
                 Modifier
@@ -374,12 +382,14 @@ private fun SettingsSwitchRow(
 @Composable
 private fun DeveloperOptions(container: AppContainer) {
     var failNext by rememberSaveable { mutableStateOf(false) }
+    var failReads by rememberSaveable { mutableStateOf(false) }
     var slow by rememberSaveable { mutableStateOf(false) }
 
     fun applyKnobs() {
         container.fakeBackend.delayMs = if (slow) 3_000L else 300L
         // Only arm the failure when the user asked for it on this screen.
         container.fakeBackend.failNextWith = if (failNext) ErrorReason.NETWORK else null
+        container.fakeBackend.failReadsWith = if (failReads) ErrorReason.NETWORK else null
     }
 
     SettingsCard(Modifier.fillMaxWidth()) {
@@ -425,6 +435,23 @@ private fun DeveloperOptions(container: AppContainer) {
                     },
                 )
             }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = stringResource(R.string.dev_fail_reads),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                AppSwitch(
+                    checked = failReads,
+                    onCheckedChange = {
+                        failReads = it
+                        applyKnobs()
+                    },
+                )
+            }
         }
     }
 }
@@ -466,6 +493,22 @@ private fun ProfileLoadingPreview() {
     MaterialTheme {
         ProfileContent(
             state = ProfileUiState(loading = true),
+            editState = EditProfileUiState(),
+            onNameChange = {},
+            onEmailChange = {},
+            onSave = {},
+            onSetPushEnabled = {},
+            onSignOut = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Profile load error")
+@Composable
+private fun ProfileLoadErrorPreview() {
+    MaterialTheme {
+        ProfileContent(
+            state = ProfileUiState(loading = false, loadError = true),
             editState = EditProfileUiState(),
             onNameChange = {},
             onEmailChange = {},
