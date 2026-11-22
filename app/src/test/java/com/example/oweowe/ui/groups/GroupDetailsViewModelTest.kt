@@ -152,7 +152,8 @@ class GroupDetailsViewModelTest {
         val state = viewModel(db).uiState.first { !it.loading }
 
         val anna = state.members.first { it.user.uid == SeedData.ANNA }
-        assertEquals(SeedData.ANNA, anna.user.fullName)
+        // The raw UID is an internal id, not a name to show on S4/S5 (FR2).
+        assertEquals(User.UNKNOWN_FULL_NAME, anna.user.fullName)
         assertTrue(anna.iOweOre > 0)
     }
 

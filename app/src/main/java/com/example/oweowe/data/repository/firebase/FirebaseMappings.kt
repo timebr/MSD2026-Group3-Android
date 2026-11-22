@@ -8,8 +8,10 @@ import com.example.oweowe.data.model.SyncStatus
 import com.example.oweowe.data.model.User
 import com.google.firebase.firestore.DocumentSnapshot
 
+// The document ID *is* the Auth UID (see User.uid), so it wins over a copied
+// `uid` field: a stale field must not hide the member or break balance lookups.
 internal fun DocumentSnapshot.toUser(): User = User(
-    uid = getString("uid")?.takeIf { it.isNotBlank() } ?: id,
+    uid = id,
     fullName = getString("fullName").orEmpty(),
     email = getString("email").orEmpty().lowercase(),
     phone = getString("phone").orEmpty(),

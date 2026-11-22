@@ -16,7 +16,7 @@ class FakeUserRepository(private val db: FakeBackend) : UserRepository {
 
     override fun observeUsers(uids: List<String>): Flow<List<User>> =
         db.users.map { users ->
-            uids.distinct().map { uid -> users.find { it.uid == uid } ?: User(uid = uid, fullName = uid) }
+            uids.distinct().map { uid -> users.find { it.uid == uid } ?: User(uid = uid, fullName = User.UNKNOWN_FULL_NAME) }
         }
 
     override suspend fun updateProfile(

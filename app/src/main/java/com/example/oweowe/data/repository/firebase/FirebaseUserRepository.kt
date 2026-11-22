@@ -45,7 +45,7 @@ class FirebaseUserRepository(
                 .snapshots()
                 .map { snapshot ->
                     val found = snapshot.documents.map { it.toUser() }.associateBy { it.uid }
-                    chunk.map { uid -> found[uid] ?: User(uid = uid, fullName = uid) }
+                    chunk.map { uid -> found[uid] ?: User(uid = uid, fullName = User.UNKNOWN_FULL_NAME) }
                 }
         }
         return combine(flows) { lists -> lists.flatMap { it }.distinctBy { it.uid } }
