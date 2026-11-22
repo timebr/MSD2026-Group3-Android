@@ -161,11 +161,12 @@ and a `Firestore…` implementation.
   restores the data. The error state keeps the offline flag from the last good
   state, so the banner does not disappear.
 - All six screens with reads implement that state (`loading`, content, empty,
-  `loadError` with a Retry button, plus `@Preview`s). Two collectors are not
-  part of a `UiState` and handle the error themselves: the S7 edit-form
-  pre-fill and the "remind" amount lookup report it as a message, the NFR5
-  background-sync watcher skips the snackbar, and `NotificationCoordinator`
-  retries after 30 s instead of ending notifications for the session.
+  `loadError` with a Retry button, plus `@Preview`s). Three collectors are not
+  part of a `UiState` and handle the error where it happens: the S7 "remind"
+  amount lookup reports it as a message, the S7 edit-form pre-fill and the
+  NFR5 background-sync watcher skip their optional work, and
+  `NotificationCoordinator` retries after 30 s instead of ending notifications
+  for the session.
 - To demonstrate the error path without Firebase, the developer options on S6
   arm `FakeBackend.failReadsWith` ("Fail every read"); the fake repositories
   then throw like a failed listener, so the error state and its Retry button
