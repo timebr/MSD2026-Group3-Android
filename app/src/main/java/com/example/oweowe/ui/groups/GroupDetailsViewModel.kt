@@ -312,7 +312,16 @@ class GroupDetailsViewModel(
         val group = uiState.value.group ?: return
         busy.value = true
         viewModelScope.launch {
-            val expenses = expenseRepository.observeExpenses(group.id).first()
+            // NFR: a read error must not escape this launch and crash the app.
+            val expenses = try {
+                expenseRepository.observeExpenses(group.id).first()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                busy.value = false
+                _messages.emit(UiMessage(R.string.common_error_generic))
+                return@launch
+            }
             val amount = BalanceCalculator.amountOwed(
                 expenses,
                 from = member.user.uid,

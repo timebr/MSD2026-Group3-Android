@@ -23,6 +23,7 @@ import com.example.oweowe.domain.BalanceCalculator
 import com.example.oweowe.ui.components.UiMessage
 import com.example.oweowe.ui.components.errorReasonRes
 import com.example.oweowe.ui.components.retryOnReadError
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -224,6 +226,10 @@ class HomeViewModel(
                     if (group == null) flowOf(emptyList()) else expenseRepository.observeExpenses(group.id)
                 },
             ) { meId, expenses -> meId to expenses }
+                // This snackbar is a convenience on top of the S3 data; a failed
+                // read here only means the message is skipped, as it did when the
+                // repository silently emitted an empty list (NFR: no crash).
+                .catch { e -> if (e is CancellationException) throw e }
                 .collect { (meId, expenses) ->
                     val nowPending = expenses
                         .filter { it.syncStatus == SyncStatus.PENDING }

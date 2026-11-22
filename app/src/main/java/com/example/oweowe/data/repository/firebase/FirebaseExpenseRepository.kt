@@ -20,7 +20,6 @@ import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.snapshots
 import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
@@ -46,7 +45,7 @@ class FirebaseExpenseRepository(
                     ?: if (doc.metadata.hasPendingWrites()) SyncStatus.PENDING else SyncStatus.SYNCED
                 doc.toExpense(groupId, status)
             }
-        }.catch { emit(emptyList()) }
+        }
 
     override suspend fun addExpense(
         groupId: String,
